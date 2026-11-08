@@ -1,5 +1,5 @@
-/* Only publishable credentials belong here. Never add service_role or sb_secret keys. */
+/* LinkBook's dedicated Supabase project. This is a PUBLIC publishable key, not a secret. */
 window.LINKBOOK_AUTH = {
-  url: '',
-  publishableKey: ''
+  url: 'https://dcmxqlrodbckqbeaxnqd.supabase.co',
+  publishableKey: 'sb_publishable_N_OSZFgWoF6OvxpB3cWCjQ_e3iYcWTm'
 };
