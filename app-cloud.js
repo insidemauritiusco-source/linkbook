@@ -61,9 +61,10 @@ async function refresh(){
  const tip=$('.rightbar .panel:nth-child(2) p');if(tip)tip.textContent='Your posts, messages, friend requests and notifications now sync between signed-in members.';
  render();
 }
-function switchPage(p){page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
+function switchPage(p){if(page==='live'&&p!=='live')window.LinkBookLive?.leavePage();page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
 function render(){
  document.querySelectorAll('[data-page]').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
+ if(page==='live'){window.LinkBookLive?.render(root);return;}
  let html=page==='feed'?feed():page==='friends'?friendsPage():page==='messages'?messagesPage():page==='saved'?'<h1 class="page-title">Saved posts</h1>'+listPosts(posts.filter(p=>saved.some(s=>s.post_id===p.id))):page==='profile'?profilePage():page==='settings'?settingsPage():page==='notifications'?notificationsPage():'';
  root.innerHTML=html;
  window.LinkBookRegion?.applyStatic?.();
@@ -195,5 +196,6 @@ async function submit(e){
 function change(e){if(e.target.name==='media'&&e.target.closest('#cloudPost')){$('#fileLabel').textContent=e.target.files[0]?.name||''}}
 const badge=document.createElement('button');badge.className='cloud-notifications';badge.type='button';badge.title='Notifications';badge.setAttribute('aria-label','Notifications');badge.textContent='🔔';badge.addEventListener('click',()=>switchPage('notifications'));$('.header-actions')?.prepend(badge);
 root.innerHTML='<section class="panel empty">Connecting LinkBook Pro…</section>';
+if(new URLSearchParams(location.search).has('live'))page='live';
 boot().catch(e=>{console.error(e);root.innerHTML='<section class="panel"><h2>Cannot connect to LinkBook Pro</h2><p>'+esc(errText(e))+'</p><button class="primary" id="cloudRetry">Retry</button></section>';$('#cloudRetry').onclick=()=>location.reload()});
 })();
