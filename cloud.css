@@ -22,3 +22,17 @@ body.dark .lb-chat-person.selected{background:#29415d;color:#d4e7ff}
 body.dark .lb-bubble{background:#2e405b;color:#edf2ff}
 body.dark .lb-bubble.mine{background:#2563eb}
 @media(max-width:720px){.lb-chats{grid-template-columns:1fr}.lb-chat-people{display:flex;overflow-x:auto;gap:8px;border-right:0;border-bottom:1px solid #dce5f4;padding:0 0 10px}.lb-chat-person{width:auto;white-space:nowrap}.lb-bubble{max-width:92%}.lb-upload input{max-width:38vw}}
+
+/* LinkBook mobile media composer */
+.cloud-upload{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0 6px}
+.cloud-pick{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:650;color:#2563eb;cursor:pointer}
+.cloud-pick input{max-width:100%;font-size:13px;color:inherit}
+.cloud-media-preview{margin:12px 0;padding:10px;border:1px solid #d7e1f0;border-radius:14px;max-width:100%;overflow:hidden}
+.cloud-media-preview[hidden],.cloud-upload-status[hidden]{display:none}
+.cloud-media-thumb{display:block;width:100%;max-height:360px;object-fit:contain;border-radius:10px;background:#111827}
+.cloud-media-preview p{margin:8px 0;overflow-wrap:anywhere;font-size:12px}
+.cloud-media-preview button{margin-top:4px}
+.cloud-upload-status{margin:10px 0;color:#1d4ed8;font-size:13px;font-weight:600}
+.cloud-upload-status.is-error{color:#b91c1c}
+body.dark .cloud-media-preview{border-color:#485a70}
+@media(max-width:720px){.cloud-upload{align-items:stretch;flex-direction:column}.cloud-pick input{width:100%;max-width:100%;font-size:12px}.cloud-media-thumb{max-height:320px}}
