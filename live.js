@@ -128,6 +128,7 @@ function cameraDisplayName(d,i){
  if(!d)return 'Camera '+(i+1);
  return d.label||'Camera '+(i+1);
 }
+function mobileCameraDevice(){return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);}
 function renderCameraControls(){
  const select=$('#liveCameraSelect'),state=$('#liveCameraStatus'),track=currentCameraTrack();
  if(!track||mode!=='hosting')return;
@@ -149,12 +150,15 @@ function renderCameraControls(){
   if(cameraDevices.some(x=>x.deviceId===cameraId))select.value=cameraId;
   else if(before&&cameraDevices.some(x=>x.deviceId===before))select.value=before;
  }
+ const canTrySwitch=cameraDevices.length>1||mobileCameraDevice();
  for(const id of ['liveFront','liveBack','liveFlip']){
-  const button=$(id);if(button)button.disabled=cameraBusy||cameraDevices.length<=1;
+  const button=$(id);if(button)button.disabled=cameraBusy||!canTrySwitch;
  }
  if(state){
   if(cameraDevices.length<=1){
-   state.textContent='Only one camera detected. A laptop webcam cannot switch to a rear camera; open LinkBook on a phone with front and back cameras.';
+   state.textContent=mobileCameraDevice()
+    ?'Your phone lists '+cameraDevices.length+' camera. You can still try Front or Back: some Android browsers hide the other camera.'
+    :'Only one camera detected. Open LinkBook on a phone with front and back cameras to switch.';
   }else{
    const current=cameraDevices.find(d=>d.deviceId===cameraId);
    state.textContent='Using '+(cameraFacing==='environment'?'back camera':cameraFacing==='user'?'front camera':'camera')+(current?.label?' — '+current.label:'')+'. Choose Front, Back, or a specific camera.';
@@ -179,67 +183,94 @@ async function applyVideoTrack(newTrack,oldTrack){
 async function switchCamera(direction='toggle'){
  if(cameraBusy||mode!=='hosting'||!media||!navigator.mediaDevices?.getUserMedia)return;
  cameraBusy=true;
- const oldTrack=currentCameraTrack(),currentStream=media,originalFacing=cameraFacing;
+ const oldTrack=currentCameraTrack(),currentStream=media,originalFacing=detectFacing(oldTrack);
+ const oldSettings=oldTrack?.getSettings?.()||{};
+ const oldId=oldSettings.deviceId||cameraId;
  let stoppedOld=false,newTrack=null;
  try{
   await listCameras();
-  if(cameraDevices.length<=1){
-   toast('Only one camera is available. On a laptop there is usually no rear camera; try a phone.');
+  const byId=cameraDevices.find(x=>x.deviceId===direction);
+  const wanted=byId?null:(direction==='toggle'?(originalFacing==='user'?'environment':'user'):direction);
+  if(!byId&&cameraDevices.length<=1&&!mobileCameraDevice()){
+   toast('Only one camera is available. Please use a phone to switch between front and back.');
    return;
   }
-  const oldId=oldTrack?.getSettings?.().deviceId||cameraId;
-  const other=cameraDevices.filter(x=>x.deviceId!==oldId);
-  const wanted=direction==='toggle'?(originalFacing==='user'?'environment':'user'):direction;
-  const byId=cameraDevices.find(x=>x.deviceId===direction);
-  const named=other.find(x=>wanted==='environment'?labelIsRear(x.label):labelIsFront(x.label));
-  const target=byId||named||(direction==='toggle'?other[0]:null);
   if(byId?.deviceId===oldId){
    toast('That camera is already selected.');
    return;
   }
-  const constraints=target?.deviceId?{deviceId:{exact:target.deviceId}}:{facingMode:{exact:wanted}};
-  // Some browsers support only one open camera at a time.
-  async function openTarget(){
-   return navigator.mediaDevices.getUserMedia({audio:false,video:constraints});
+  const constraints=[];
+  if(byId){
+   constraints.push({deviceId:{exact:byId.deviceId}});
+  }else{
+   // Prefer the logical front/back camera on phones: Android device IDs can change.
+   constraints.push({facingMode:{exact:wanted}});
+   constraints.push({facingMode:wanted});
+   const named=cameraDevices.find(x=>x.deviceId!==oldId&&(wanted==='environment'?labelIsRear(x.label):labelIsFront(x.label)));
+   if(named)constraints.push({deviceId:{exact:named.deviceId}});
   }
-  let nextStream;
-  try{nextStream=await openTarget();}
-  catch(e){
-   if(oldTrack?.readyState==='live'&&['NotReadableError','AbortError','NotAllowedError','OverconstrainedError'].includes(e.name)){
-    if(e.name==='NotAllowedError')throw e;
-    // Releasing the previous track is required by some mobile camera drivers.
-    oldTrack.stop();stoppedOld=true;
-    nextStream=await openTarget();
-   }else throw e;
+  // Android often cannot open another camera until the previous one is released.
+  if(oldTrack?.readyState==='live'){oldTrack.stop();stoppedOld=true;}
+  if(stoppedOld)await new Promise(resolve=>setTimeout(resolve,250));
+  let lastError=null;
+  for(const video of constraints){
+   try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:false,video});
+    const candidate=stream.getVideoTracks()[0];
+    if(!candidate)throw Error('The selected camera returned no video.');
+    const settings=candidate.getSettings?.()||{};
+    if(wanted&&settings.facingMode&&settings.facingMode!==wanted){
+     candidate.stop();lastError=Error('The browser selected the wrong camera.');continue;
+    }
+    if(wanted&&settings.deviceId&&oldId===settings.deviceId&&cameraDevices.length>1){
+     candidate.stop();lastError=Error('The browser reopened the same camera.');continue;
+    }
+    newTrack=candidate;
+    break;
+   }catch(e){
+    lastError=e;
+    if(e.name==='NotAllowedError'||e.name==='SecurityError')throw e;
+    await new Promise(resolve=>setTimeout(resolve,250));
+   }
   }
-  newTrack=nextStream.getVideoTracks()[0];
-  if(!newTrack)throw Error('The selected camera returned no video.');
+  if(!newTrack)throw lastError||Error('Unable to open the requested camera.');
   if(mode!=='hosting'||media!==currentStream){newTrack.stop();return;}
   const got=newTrack.getSettings?.()||{};
-  if(!target&&wanted&&got.facingMode&&got.facingMode!==wanted){
-   newTrack.stop();
-   throw Error('This browser could not select the '+(wanted==='environment'?'back':'front')+' camera.');
-  }
-  const success=await applyVideoTrack(newTrack,oldTrack);
-  if(!success)return;
-  cameraId=got.deviceId||target?.deviceId||null;
+  if(!await applyVideoTrack(newTrack,oldTrack))return;
+  cameraId=got.deviceId||byId?.deviceId||null;
   cameraFacing=got.facingMode||(
-   labelIsRear(target?.label)?'environment':labelIsFront(target?.label)?'user':wanted);
+   labelIsRear(byId?.label)?'environment':labelIsFront(byId?.label)?'user':wanted||originalFacing);
   await refreshCameras();
   toast('Camera changed to '+(cameraFacing==='environment'?'back':'front')+'.');
  }catch(e){
-  if(newTrack&&newTrack.readyState==='live'&&!media?.getTracks().includes(newTrack))newTrack.stop();
+  if(newTrack?.readyState==='live'&&!media?.getTracks().includes(newTrack))newTrack.stop();
+  let restored=false;
   if(stoppedOld&&mode==='hosting'&&media===currentStream){
-   try{
-    const restoreSettings=oldTrack?.getSettings?.()||{};
-    const recovery=await navigator.mediaDevices.getUserMedia({audio:false,video:restoreSettings.deviceId?{deviceId:{exact:restoreSettings.deviceId}}:{facingMode:{ideal:originalFacing}}});
-    const back=recovery.getVideoTracks()[0];
-    if(back){await applyVideoTrack(back,oldTrack);cameraFacing=originalFacing;}
-   }catch(recoveryErr){console.warn('Camera restoration failed:',recoveryErr);}
+   // If switching fails, reopen the original camera so the live stream can continue.
+   const recoveryOptions=[{facingMode:{ideal:originalFacing}}];
+   if(oldId)recoveryOptions.push({deviceId:{exact:oldId}});
+   recoveryOptions.push(true);
+   for(const video of recoveryOptions){
+    try{
+     const stream=await navigator.mediaDevices.getUserMedia({audio:false,video});
+     const back=stream.getVideoTracks()[0];
+     if(!back)continue;
+     try{
+      if(await applyVideoTrack(back,oldTrack)){
+       cameraFacing=originalFacing;
+       cameraId=back.getSettings?.().deviceId||null;
+       restored=true;break;
+      }
+     }catch(replaceError){back.stop();throw replaceError;}
+    }catch(recoveryError){console.warn('Camera restoration attempt failed:',recoveryError);}
+   }
   }
   await refreshCameras();
-  toast('Camera switch failed: '+(e.message||e)+'. Try choosing the camera from the list, or check browser camera permissions.');
- }finally{cameraBusy=false;renderCameraControls();}
+  toast('Camera switch failed: '+(e.message||e)+(restored?'. Original camera restored.':'. Camera could not be restored; try ending and restarting Live in Chrome.'));
+ }finally{
+  cameraBusy=false;
+  renderCameraControls();
+ }
 }
 
 function elapsedTime(start){
