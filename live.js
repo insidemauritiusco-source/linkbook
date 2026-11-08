@@ -10,7 +10,7 @@ const MAX_VIEWERS=4;
 const rtcConfig={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
 let active=null,mode='idle',media=null,peers=new Map(),peer=null,selectedId=null;
 let cursor=0,interval=null,beat=null,durationTicker=null,wakeLock=null,fetching=false,sessions=[],warning='',loading=false,lastListRefresh=0,hostNames={};
-let liveComments=[],liveReactions=[],interactionTimer=null,interactionLoading=false,micMuted=false,cameraOff=false,cameraFacing='user';
+let liveComments=[],liveReactions=[],interactionTimer=null,interactionLoading=false,micMuted=false,cameraOff=false,cameraFacing='user',lastCommentSent=0;
 const uid=()=>user()?.id;
 const check=res=>{if(res.error)throw res.error;return res.data;};
 const page=()=>document.querySelector('#content .lb-live-page');
@@ -44,7 +44,14 @@ async function loadInteractions(){
   if(!isActiveLive()||active.id!==sessionId)return;
   liveComments=check(results[0])||[];
   liveReactions=check(results[1])||[];
-  drawInteractions();
+  const ids=[...new Set(liveComments.map(c=>c.author_id))];
+  if(ids.length){
+   const res=await db().from('profiles').select('id,display_name').in('id',ids);
+   if(!res.error){
+    window.LinkBookLiveProfileNames=Object.fromEntries((res.data||[]).map(p=>[p.id,p.display_name]));
+   }
+  }
+  if(isActiveLive()&&active?.id===sessionId)drawInteractions();
  }catch(e){console.warn('Live interactions:',e);}
  finally{interactionLoading=false;}
 }
@@ -73,6 +80,8 @@ async function sendComment(form){
  if(!isActiveLive())return;
  const input=form.elements.body,body=input.value.trim();
  if(!body||body.length>400)return;
+ if(Date.now()-lastCommentSent<2500){toast('Please wait a moment before posting another comment.');return;}
+ lastCommentSent=Date.now();
  const button=form.querySelector('button[type=submit]');button.disabled=true;
  try{
   check(await db().from('live_comments').insert({session_id:active.id,author_id:uid(),body}));
