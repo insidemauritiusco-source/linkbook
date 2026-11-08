@@ -1,0 +1,11 @@
+.country-pill{display:inline-flex;align-items:center;white-space:nowrap;gap:5px;border-radius:100px;padding:6px 10px;background:#e9f2ff;color:#205ccf;font-weight:700;font-size:12px}
+.regional-clock{font-variant-numeric:tabular-nums;color:#667995;font-weight:600;font-size:12px;white-space:nowrap}
+.regional-setting{display:grid;gap:12px}
+.regional-setting select{width:100%;padding:12px 14px;border:1px solid #dfe7f1;border-radius:10px;background:var(--field,#fff);color:inherit;font:inherit}
+.regional-fact{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #eef1f6;font-size:14px}
+.regional-fact span:first-child{color:#78869b}
+.regional-help{color:#78869b;font-size:13px;line-height:1.55;margin:10px 0 0}
+body.dark .country-pill{background:#263d65;color:#c7ddff}
+body.dark .regional-fact{border-bottom-color:#3a4860}
+@media(max-width:900px){.country-pill{display:none}}
+@media(max-width:520px){.regional-fact{flex-wrap:wrap}}
