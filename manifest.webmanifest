@@ -1,0 +1,19 @@
+{
+  "name": "LinkBook — Connect, Share, Discover",
+  "short_name": "LinkBook",
+  "description": "A community for friends, posts, messages and moments.",
+  "id": "/linkbook/",
+  "start_url": "/linkbook/",
+  "scope": "/linkbook/",
+  "display": "standalone",
+  "background_color": "#f2f5fb",
+  "theme_color": "#1769e0",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
