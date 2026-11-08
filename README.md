@@ -103,3 +103,19 @@ Implemented in the dedicated LinkBook Supabase project and on the GitHub Pages f
 - The live broadcast stack remains experimental (WebRTC STUN only, up to four viewers, no TURN/SFU). Do not advertise it as production-scale Facebook Live, and do not promise live streaming connectivity on all networks.
 - File storage is public-readable by URL; posts and profiles are members-only in the database, but their uploaded media links can be shared externally. Do not claim uploaded media is private.
 - Keep LinkBook in public **beta** until the operator finishes testing, configures moderator ownership, and sets up incident response/contact and legal information.
+
+## 8 November 2026 — media publishing reliability pull request
+
+- Small photo uploads (up to 6 MB) retry up to three times on temporary network failures, with bounded backoff. Authentication/permission errors are not retried.
+- Keep the selected file, caption, and upload object path after a failed request; a retry checks whether the public storage object was already saved before uploading again.
+- Videos larger than 6 MB retain the existing TUS resumable uploader and its retry support.
+- Each draft post receives a stable UUID during retries. Before re-sending an ambiguous database insert, the app checks for the existing ID to avoid duplicates.
+- Error messages tell Android users that a failed connection did not erase their draft.
+- `media-retry.js` contains the retry helper. Run its tests with `node --test tests/media-retry.test.cjs`.
+- Browser cache versions are updated for the authenticated app and retry helper.
+
+### Verification and limitations
+Checked LinkBook Supabase project `dcmxqlrodbckqbeaxnqd`: the `linkbook-media` bucket exists and permits JPEG/PNG/WebP/GIF/MP4/WebM up to 25 MB; authenticated members can insert only under their own user ID folder. During the reported failure on 8 November 2026, edge logs showed successful OPTIONS preflights for three PNG uploads. The cause of the subsequent failure was not established.
+
+Static JavaScript parsing and a retry helper smoke check passed during the change. Full Android browser uploads with a signed-in account, multi-account posting, and video resume under poor network conditions **remain to be tested after review**. Do not treat this PR as a verified live fix until those tests succeed.
+
