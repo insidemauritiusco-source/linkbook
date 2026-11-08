@@ -34,3 +34,12 @@ body.dark .auth-demo{color:#cadbff;border-color:#4b6697}body.dark .auth-demo:hov
 body.dark .auth-phone-button{background:#233e67;color:#d8e8ff;border-color:#426295}
 body.dark .auth-phone-target{background:#263952;color:#e2ecff}
 body.dark .auth-phone-hint{color:#a7bad4}
+
+
+/* Google OAuth sign-in on email and phone authentication screens */
+.auth-google-button{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;margin:14px 0 0;padding:13px 16px;border-radius:12px;border:1px solid #cbd5e1;background:#fff;color:#24334b;font-weight:750;min-height:48px}
+.auth-google-button:hover:not(:disabled){background:#f3f7ff;border-color:#9fbbe8}
+.auth-google-button:disabled{opacity:.6;cursor:wait}
+.auth-google-mark{font-family:Arial,sans-serif;font-size:23px;font-weight:900;line-height:1;color:#4285f4;letter-spacing:-2px;text-shadow:-1px 1px #34a853,1px 1px #fbbc05}
+body.dark .auth-google-button{background:#23334b;color:#fff;border-color:#50627e}
+body.dark .auth-google-button:hover:not(:disabled){background:#2b4161}
