@@ -59,11 +59,13 @@ async function refresh(){
  const top=$('#userTop');if(top)top.textContent=icon(profileName(me));
  const note=$('.note');if(note)note.innerHTML='LinkBook Pro<br><small>Signed-in posts and messages are shared online securely through Supabase.</small>';
  const tip=$('.rightbar .panel:nth-child(2) p');if(tip)tip.textContent='Your posts, messages, friend requests and notifications now sync between signed-in members.';
+ if(new URLSearchParams(location.search).has('live'))page='live';
  render();
 }
 function switchPage(p){if(page==='live'&&p!=='live')window.LinkBookLive?.leavePage();page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
 function render(){
  document.querySelectorAll('[data-page]').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
+ if(page==='live'){window.LinkBookLive?.render?.(root);return;}
  if(page==='live'){window.LinkBookLive?.render(root);return;}
  let html=page==='feed'?feed():page==='friends'?friendsPage():page==='messages'?messagesPage():page==='saved'?'<h1 class="page-title">Saved posts</h1>'+listPosts(posts.filter(p=>saved.some(s=>s.post_id===p.id))):page==='profile'?profilePage():page==='settings'?settingsPage():page==='notifications'?notificationsPage():'';
  root.innerHTML=html;
