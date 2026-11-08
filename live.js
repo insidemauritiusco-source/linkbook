@@ -152,7 +152,7 @@ function renderCameraControls(){
  }
  const canTrySwitch=cameraDevices.length>1||mobileCameraDevice();
  for(const id of ['liveFront','liveBack','liveFlip']){
-  const button=$(id);if(button)button.disabled=cameraBusy||!canTrySwitch;
+  const button=$('#'+id);if(button)button.disabled=cameraBusy||!canTrySwitch;
  }
  if(state){
   if(cameraDevices.length<=1){
