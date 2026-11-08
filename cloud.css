@@ -1,0 +1,24 @@
+/* LinkBook Pro cloud interface */
+.lb-banner{padding:13px 16px;margin:0 0 14px;border:1px solid #c5d9fa;border-radius:12px;background:#e9f2ff;color:#204c92;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.lb-banner button{border:0;background:transparent;color:inherit;font-size:22px;cursor:pointer}
+.lb-upload{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#2766ec;cursor:pointer}
+.lb-upload input{width:160px;max-width:35vw;font-size:11px}
+.lb-media{display:block;width:100%;max-height:500px;object-fit:contain;border-radius:12px;background:#111827;margin-bottom:14px}
+.lb-cover{height:125px;border-radius:15px;background:linear-gradient(115deg,#2563eb,#31b7ca,#7452e7)}
+.lb-profile-heading{display:flex;align-items:center;gap:16px;margin:16px 0}
+.lb-profile-heading .avatar{width:58px;height:58px;font-size:24px}
+.lb-profile-heading h2{margin:0 0 7px}
+.lb-chats{display:grid;grid-template-columns:minmax(135px,210px) minmax(0,1fr);gap:16px;min-height:350px}
+.lb-chat-people{border-right:1px solid #dce5f4;padding-right:12px}
+.lb-chat-person{display:block;width:100%;text-align:left;border:0;border-radius:10px;background:transparent;padding:12px 9px;color:inherit;cursor:pointer}
+.lb-chat-person.selected{background:#e8f1ff;color:#225fc8;font-weight:700}
+.lb-chat-main{min-width:0}
+.lb-chat-log{height:330px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:12px 4px}
+.lb-bubble{max-width:80%;align-self:flex-start;border-radius:16px;padding:11px 14px;background:#e9eff8;overflow-wrap:anywhere;font-size:14px}
+.lb-bubble.mine{align-self:flex-end;background:#2563eb;color:white}
+.lb-bubble small{display:block;opacity:.68;font-size:10px;margin-top:6px}
+body.dark .lb-banner{background:#203959;border-color:#32609a;color:#dceaff}
+body.dark .lb-chat-person.selected{background:#29415d;color:#d4e7ff}
+body.dark .lb-bubble{background:#2e405b;color:#edf2ff}
+body.dark .lb-bubble.mine{background:#2563eb}
+@media(max-width:720px){.lb-chats{grid-template-columns:1fr}.lb-chat-people{display:flex;overflow-x:auto;gap:8px;border-right:0;border-bottom:1px solid #dce5f4;padding:0 0 10px}.lb-chat-person{width:auto;white-space:nowrap}.lb-bubble{max-width:92%}.lb-upload input{max-width:38vw}}
