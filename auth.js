@@ -39,7 +39,7 @@ function draw(message='',error=false){
     (mode==='login'||mode==='signup'?'<div class="auth-phone-option"><span>or</span><button type="button" class="auth-phone-button" data-auth-mode="phone">📱 Continue with phone number</button></div>':'')+
     (mode==='login'||mode==='signup'?'<button type="button" class="auth-google-button" id="authGoogle"><span class="auth-google-mark" aria-hidden="true">G</span> Continue with Google</button>':'')+
     '<button type="button" class="auth-demo" id="authDemo">Continue with the free demo</button>'+
-    '<p class="auth-footnote">Accounts use secure Supabase authentication. Signed-in posts, likes and messages sync through a secure cloud database. Free demo mode remains local to this browser.</p></div>';
+    '<p class="auth-footnote">Accounts use secure Supabase authentication. Signed-in posts, likes and messages sync through a secure cloud database. Free demo mode remains local to this browser. LinkBook is in public beta. Please review our <a href="privacy.html">Privacy Notice</a> and <a href="terms.html">Community Rules</a> before registering.</p></div>';
   root.querySelector('form').addEventListener('submit',submit);
   root.querySelector('#authGoogle')?.addEventListener('click',signInWithGoogle);
   root.querySelectorAll('[data-auth-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.authMode;draw()}));
