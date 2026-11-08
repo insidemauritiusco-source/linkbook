@@ -9,15 +9,39 @@ const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'
 const MAX_VIEWERS=4;
 const rtcConfig={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
 let active=null,mode='idle',media=null,peers=new Map(),peer=null,selectedId=null;
-let cursor=0,interval=null,beat=null,fetching=false,sessions=[],warning='',loading=false,lastListRefresh=0,hostNames={};
+let cursor=0,interval=null,beat=null,durationTicker=null,wakeLock=null,fetching=false,sessions=[],warning='',loading=false,lastListRefresh=0,hostNames={};
 const uid=()=>user()?.id;
 const check=res=>{if(res.error)throw res.error;return res.data;};
 const page=()=>document.querySelector('#content .lb-live-page');
 const labelTime=v=>new Intl.DateTimeFormat('en-GB',{timeZone:'Indian/Mauritius',hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'}).format(new Date(v));
 function toast(t){warning=t;const box=$('#liveNotice');if(box){box.textContent=t;box.hidden=!t;}}
+
 function closePeer(pc){try{pc?.close()}catch{}}
+function elapsedTime(start){
+ const total=Math.max(0,Math.floor((Date.now()-new Date(start).getTime())/1000))||0;
+ const days=Math.floor(total/86400),hours=Math.floor((total%86400)/3600),minutes=Math.floor((total%3600)/60),seconds=total%60;
+ const part=n=>String(n).padStart(2,'0');
+ return (days?days+'d ':'')+part(hours)+':'+part(minutes)+':'+part(seconds);
+}
+function updateDuration(){
+ const el=$('#liveElapsed');
+ if(el&&active&&(mode==='hosting'||mode==='watching'))el.textContent='⏱ '+elapsedTime(active.started_at)+' live';
+}
+async function keepScreenAwake(){
+ if(!('wakeLock' in navigator)||wakeLock||mode!=='hosting'||document.visibilityState!=='visible')return;
+ try{wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null;});}
+ catch(e){console.info('Screen wake lock unavailable:',e.message||e);}
+}
+async function heartbeat(){
+ if(mode!=='hosting'||!active)return;
+ try{
+  const r=await db().from('live_sessions').update({last_heartbeat_at:new Date().toISOString()}).eq('id',active.id).eq('host_id',uid()).eq('status','live');
+  if(r.error)throw r.error;
+ }catch(e){console.warn('Live heartbeat failed:',e);toast('Internet or server issue. Keep this tab open and check your connection.');}
+}
 function release(){
- clearInterval(interval);clearInterval(beat);interval=null;beat=null;
+ clearInterval(interval);clearInterval(beat);clearInterval(durationTicker);interval=null;beat=null;durationTicker=null;
+ wakeLock?.release().catch(()=>{});wakeLock=null;
  peers.forEach(closePeer);peers.clear();closePeer(peer);peer=null;
  media?.getTracks().forEach(t=>t.stop());media=null;
  cursor=0;selectedId=null;active=null;mode='idle';fetching=false;
@@ -158,9 +182,9 @@ async function goLive(title){
   if(prior?.length)check(await db().from('live_sessions').update({status:'ended',ended_at:new Date().toISOString()}).eq('host_id',uid()).eq('status','live'));
   const created=check(await db().from('live_sessions').insert({host_id:uid(),title:title.trim()}).select('*').single());
   active=created;mode='hosting';cursor=0;
-  beat=setInterval(()=>{
-   if(mode==='hosting')db().from('live_sessions').update({last_heartbeat_at:new Date().toISOString()}).eq('id',active.id).eq('host_id',uid()).then(({error})=>{if(error)console.warn(error)});
-  },12000);
+  beat=setInterval(()=>{heartbeat().catch(console.warn)},12000);
+  durationTicker=setInterval(updateDuration,1000);
+  keepScreenAwake().catch(console.warn);
   draw();const video=$('#liveLocal');if(video){video.srcObject=media;video.play().catch(()=>{});}
   startPolling();
  }catch(e){release();toast(e.message||'Unable to start the broadcast.');draw();}
@@ -174,6 +198,7 @@ async function watch(sessionId){
  try{
   if(mode==='watching')await stopWatching();
   active=session;selectedId=session.id;mode='watching';cursor=0;draw();
+  durationTicker=setInterval(updateDuration,1000);updateDuration();
   await sendSignal(session.host_id,'join',{});
   startPolling();
   setTimeout(()=>{
@@ -188,16 +213,17 @@ function draw(){
  el.dataset.liveState=mode;
  const wrap=el.querySelector('#liveBody');if(!wrap)return;
  if(mode==='hosting'){
-  wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div><video id="liveLocal" autoplay playsinline muted></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><span id="liveViewerCount">'+peers.size+' / '+MAX_VIEWERS+' viewers connected</span><button id="liveShare" class="secondary">Share</button><button id="liveMute" class="secondary">Mute mic</button><button id="liveEnd" class="primary lb-live-stop">End Live</button></div><p class="muted">Keep this page open while broadcasting. Leaving the Live page ends your broadcast.</p>';
+  wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div><video id="liveLocal" autoplay playsinline muted></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><span id="liveViewerCount">'+peers.size+' / '+MAX_VIEWERS+' viewers connected</span><span id="liveElapsed" class="lb-live-elapsed">⏱ 00:00:00 live</span><button id="liveShare" class="secondary">Share</button><button id="liveMute" class="secondary">Mute mic</button><button id="liveEnd" class="primary lb-live-stop">End Live</button></div><p class="muted">No fixed time limit. Keep this page open and your device awake; leaving Live or losing internet can end the broadcast.</p>';
   const v=$('#liveLocal');if(v&&media){v.srcObject=media;v.play().catch(()=>{});}
  }else if(mode==='watching'){
-  wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div><video id="liveRemote" autoplay playsinline controls></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><button id="liveShare" class="secondary">Share</button><button id="liveLeave" class="primary">Leave</button></div><p class="muted">Allow your browser to play the video. The broadcaster controls the microphone and camera.</p>';
+  wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div><video id="liveRemote" autoplay playsinline controls></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><span id="liveElapsed" class="lb-live-elapsed">⏱ 00:00:00 live</span><button id="liveShare" class="secondary">Share</button><button id="liveLeave" class="primary">Leave</button></div><p class="muted">Allow your browser to play the video. The broadcaster controls the microphone and camera.</p>';
   // On an incidental re-render, restore attached stream.
   const v=$('#liveRemote');if(v&&peer?.getReceivers().length){const tracks=peer.getReceivers().map(r=>r.track).filter(Boolean);if(tracks.length)v.srcObject=new MediaStream(tracks);}
  }else{
-  wrap.innerHTML='<section class="panel lb-live-create"><h3>🔴 Start a Live broadcast</h3><p>Share video and audio with friends on LinkBook.</p><form id="liveForm"><label for="liveTitle">Live title</label><input id="liveTitle" name="title" class="form-input" maxlength="110" minlength="3" required placeholder="What are you broadcasting?" value="Live from Mauritius"><button class="primary" type="submit">📹 Go Live</button></form><p class="muted">Up to '+MAX_VIEWERS+' simultaneous viewers. Camera and microphone permission required. This beta uses direct browser video connections and may not work on every network.</p></section>'+
+  wrap.innerHTML='<section class="panel lb-live-create"><h3>🔴 Start a Live broadcast</h3><p>Share video and audio with friends on LinkBook.</p><form id="liveForm"><label for="liveTitle">Live title</label><input id="liveTitle" name="title" class="form-input" maxlength="110" minlength="3" required placeholder="What are you broadcasting?" value="Live from Mauritius"><button class="primary" type="submit">📹 Go Live</button></form><p class="muted">No fixed time limit: stream while your browser and internet stay connected. Up to '+MAX_VIEWERS+' viewers. This beta may not work on every network.</p></section>'+
   '<h2 class="lb-live-subheading">Live now</h2><div id="liveListings">'+(sessions.length?sessions.map(s=>'<section class="panel lb-live-listing"><div><strong>🔴 '+safe(s.title)+'</strong><p class="muted">'+safe(hostNames[s.host_id]||'LinkBook member')+' · '+labelTime(s.started_at)+' MUT</p></div>'+(s.host_id===uid()?'<span class="muted">Your live</span>':'<button class="primary" data-watch="'+s.id+'">Watch Live</button>')+'</section>').join(''):'<section class="panel empty">No active broadcasts right now. Be the first to go live!</section>')+'</div>';
  }
+ updateDuration();
  const msg=el.querySelector('#liveNotice');if(msg){msg.textContent=warning;msg.hidden=!warning;}
 }
 async function render(root){
@@ -227,6 +253,13 @@ document.addEventListener('click',e=>{
   const link=location.origin+location.pathname+'?live='+encodeURIComponent(active?.id||'');
   if(navigator.share)navigator.share({title:'Watch LinkBook Live',url:link}).catch(()=>{});
   else navigator.clipboard?.writeText(link).then(()=>toast('Live link copied.')).catch(()=>toast(link));
+ }
+});
+document.addEventListener('visibilitychange',()=>{
+ if(document.visibilityState==='visible'&&mode==='hosting'){
+  heartbeat().catch(console.warn);
+  keepScreenAwake().catch(console.warn);
+  updateDuration();
  }
 });
 window.LinkBookLive={render,leavePage};
