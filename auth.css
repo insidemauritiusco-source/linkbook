@@ -1,0 +1,21 @@
+html.auth-locked .layout,html.auth-locked .mobile-nav,html.auth-locked .top .search,html.auth-locked .top .header-actions{display:none!important}
+.auth-root{min-height:calc(100svh - 72px);display:grid;place-items:center;padding:30px 15px 70px;background:radial-gradient(ellipse at top left,#dceafe,#f3f6fb 62%)}
+.auth-root[hidden],.auth-status[hidden]{display:none!important}
+.auth-card{width:min(440px,100%);padding:32px;border-radius:24px;background:#fff;border:1px solid #e1e7f2;box-shadow:0 24px 70px #24386222}
+.auth-intro{text-align:center;margin-bottom:22px}.auth-mark{width:56px;height:56px;margin:0 auto 14px;border-radius:17px;display:grid;place-items:center;font-size:35px;font-weight:900;color:white;background:linear-gradient(135deg,#2563eb,#7464ef)}
+.auth-intro h1{font-size:26px;color:#192941;margin:0 0 8px}.auth-intro p{color:#6f8099;font-size:14px;margin:0}
+.auth-form{display:grid;gap:10px}.auth-form label{color:#243553;font-size:13px;font-weight:700;padding-top:6px}
+.auth-form input{width:100%;padding:13px 14px;border:1px solid #dbe3ee;border-radius:11px;color:#1a2d45;background:#fff}
+.auth-submit{background:#2563eb;border:0;border-radius:12px;color:white;font-weight:750;padding:14px;margin-top:13px}
+.auth-submit:hover{background:#1d4ed8}.auth-submit:disabled{opacity:.6;cursor:wait}
+.auth-switch{text-align:center;margin-top:22px;color:#6e7e94;font-size:14px}
+.auth-switch button,.auth-forgot{border:0;background:none;color:#2563eb;font-weight:700;padding:5px}
+.auth-forgot{display:block;margin:8px auto 0;font-size:13px}.auth-status{padding:12px;margin:0 0 14px;border-radius:10px;color:#115e44;background:#e4f8ef;font-size:13px;line-height:1.55}.auth-status.error{color:#991b1b;background:#fee2e2}
+.auth-footnote{color:#8290a8;line-height:1.45;margin:24px 0 0;text-align:center;font-size:11px}
+.signout-button{background:#eaf1ff;color:#235cc5;font-size:13px;font-weight:750;padding:9px 12px;border:0;border-radius:9px;white-space:nowrap}
+body.dark .auth-root{background:#111827}body.dark .auth-card{background:#1d293d;border-color:#34445e}body.dark .auth-intro h1,body.dark .auth-form label{color:#f1f5fa}body.dark .auth-form input{color:#fff;background:#1a2842;border-color:#425674}
+@media(max-width:520px){.auth-card{padding:23px}.auth-root{min-height:calc(100svh - 63px);padding:16px 12px 50px}.auth-intro h1{font-size:23px}}
+
+.auth-demo{display:block;margin:16px auto 0;border:1px solid #c6d7f4;color:#2457be;background:transparent;border-radius:12px;padding:12px 18px;width:100%;font-weight:700}
+.auth-demo:hover{background:#eef5ff}
+body.dark .auth-demo{color:#cadbff;border-color:#4b6697}body.dark .auth-demo:hover{background:#283b59}
