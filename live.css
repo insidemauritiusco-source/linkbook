@@ -26,3 +26,13 @@ body.dark .lb-live-social-head{border-color:#42536c}
 body.dark .lb-live-social-head span{color:#aebddd}
 body.dark .lb-live-reactions button{background:#263854;border-color:#546987}
 @media(max-width:720px){.lb-live-social{padding:13px}.lb-live-reactions{justify-content:space-around}.lb-live-comment-form button{padding:9px 12px}}
+
+/* Actual camera selection on mobile: front, back and specific device */
+.lb-camera-chooser{display:grid;gap:8px;margin:6px 0 15px;padding:13px;border:1px solid #d9e5f4;border-radius:12px;background:#f8fbff}
+.lb-camera-chooser label{font-weight:700;font-size:13px}
+.lb-camera-chooser select{width:100%;font:inherit;color:inherit;background:var(--field,#fff);padding:11px;border:1px solid #b9cce5;border-radius:10px}
+.lb-camera-chooser p{margin:2px 0!important;font-size:12px;line-height:1.5;color:#597293}
+#liveLocal.lb-mirror{transform:scaleX(-1)}
+body.dark .lb-camera-chooser{background:#1d2e45;border-color:#3a536d}
+body.dark .lb-camera-chooser p{color:#b6c9e2}
+@media(max-width:720px){.lb-live-controls button{flex:1 1 42%;min-width:0}.lb-camera-chooser{margin:8px 0 13px}}
