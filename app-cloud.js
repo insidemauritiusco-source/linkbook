@@ -12,6 +12,7 @@ const profileName=p=>p?.display_name||'Member';
 const errText=e=>String(e?.message||e||'Something went wrong');
 let me=null,people=[],posts=[],likes=[],comments=[],saved=[],friends=[],messages=[],notifications=[];
 let page='feed',filter='latest',query='',peer=null,busy=false,composer=false,file=null,channel=null;
+let selectedMediaFile=null;
 function notify(text,error=false){let el=$('#cloudStatus');if(!el){el=document.createElement('div');el.id='cloudStatus';el.className='cloud-toast';document.body.appendChild(el)}el.textContent=text;el.classList.toggle('error',error);el.hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>{el.hidden=true},4500)}
 async function call(fn){try{await fn()}catch(e){console.error(e);notify(errText(e),true)}}
 async function check(promise){const r=await promise;if(r.error)throw r.error;return r.data}
@@ -61,9 +62,11 @@ async function refresh(){
  const top=$('#userTop');if(top)top.textContent=icon(profileName(me));
  const note=$('.note');if(note)note.innerHTML='LinkBook Pro<br><small>Signed-in posts and messages are shared online securely through Supabase.</small>';
  const tip=$('.rightbar .panel:nth-child(2) p');if(tip)tip.textContent='Your posts, messages, friend requests and notifications now sync between signed-in members.';
- render();
+ // Never rebuild the open composer while Android's file picker is returning focus.
+ // Rebuilding its DOM drops the selected FileList and any unpublished caption.
+ if(!(page==='feed'&&composer&&root.querySelector('#cloudPost')))render();
 }
-function switchPage(p){discardMediaPreview();if(page==='live'&&p!=='live')window.LinkBookLive?.leavePage();page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
+function switchPage(p){selectedMediaFile=null;discardMediaPreview();if(page==='live'&&p!=='live')window.LinkBookLive?.leavePage();page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
 function render(){
  if(selectedMediaUrl && (!composer||page!=='feed'))discardMediaPreview();
  document.querySelectorAll('[data-page]').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
@@ -133,9 +136,10 @@ function mediaStatus(message,error=false){
 function previewMedia(file){
  discardMediaPreview();const holder=root.querySelector('#mediaPreview'), label=root.querySelector('#fileLabel');
  if(!holder||!label)return;
+ selectedMediaFile=file||null;
  holder.replaceChildren();holder.hidden=true;label.textContent='';
  if(!file){mediaStatus('');return;}
- try{validateMedia(file)}catch(err){mediaStatus(err.message,true);return;}
+ try{validateMedia(file)}catch(err){selectedMediaFile=null;const input=root.querySelector('#cloudPost input[name=media]');if(input)input.value='';mediaStatus(err.message,true);return;}
  selectedMediaUrl=URL.createObjectURL(file);
  const media=document.createElement(file.type.startsWith('video/')?'video':'img');
  media.src=selectedMediaUrl;media.className='cloud-media-thumb';
@@ -156,8 +160,8 @@ async function upload(file){
 async function click(e){
  const pg=e.target.closest('[data-page]');if(pg){switchPage(pg.dataset.page);return}
  const fs=e.target.closest('[data-filter]');if(fs){filter=fs.dataset.filter;render();return}
- if(e.target.closest('#openComposer')){composer=true;render();return}
- if(e.target.closest('[data-remove-media]')){const input=root.querySelector('#cloudPost input[name=media]');if(input)input.value='';previewMedia(null);return;}
+ if(e.target.closest('#openComposer')){selectedMediaFile=null;composer=true;render();return}
+ if(e.target.closest('[data-remove-media]')){const input=root.querySelector('#cloudPost input[name=media]');if(input)input.value='';selectedMediaFile=null;previewMedia(null);return;}
  const p=e.target.closest('[data-peer]');if(p){peer=p.dataset.peer;render();return}
  const f=e.target.closest('[data-friend]');if(f)return call(async()=>{
  const other=f.dataset.person,action=f.dataset.friend,link=relation(other);
@@ -204,13 +208,13 @@ async function submit(e){
  busy=true;const btn=form.querySelector('button[type=submit],button.primary');if(btn)btn.disabled=true;
  try {
  if(id==='cloudPost'){
-  const text=form.elements.body.value.trim(),f=form.elements.media.files[0];
+  const text=form.elements.body.value.trim(),f=form.elements.media.files[0]||selectedMediaFile;
   if(!text&&!f)throw Error('Write a post or choose a photo/video.');
   validateMedia(f);mediaStatus(f?'Uploading your photo/video…':'Publishing your post…');
   let uploaded;
   try{uploaded=await upload(f);mediaStatus('Saving your post…');await check(db.from('posts').insert({author_id:user.id,body:text,media_url:uploaded?.url||null,media_type:uploaded?.type||null}));}
   catch(err){if(uploaded?.path)await db.storage.from('linkbook-media').remove([uploaded.path]);throw err}
-  composer=false;discardMediaPreview();notify('Your post is online!');
+  composer=false;selectedMediaFile=null;discardMediaPreview();notify('Your post is online!');
  }else if(id==='cloudProfile'){
   const d=new FormData(form),patch={display_name:String(d.get('display_name')||'').trim(),bio:String(d.get('bio')||'').trim(),location:String(d.get('location')||'').trim(),updated_at:new Date().toISOString()};
   if(!patch.display_name)throw Error('Display name required.');
