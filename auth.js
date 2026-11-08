@@ -55,6 +55,7 @@ function notice(text,error=false){
 async function start(){
   const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm');
   client=createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'linkbook-auth-session'}});
+  window.linkbookClient=client;
   client.auth.onAuthStateChange((event,session)=>{
     if(event==='PASSWORD_RECOVERY'){
       recovery=true;mode='recover';document.documentElement.classList.add('auth-locked');root.hidden=false;draw();
