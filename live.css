@@ -5,3 +5,24 @@
 /* Continuous live broadcast timer */
 .lb-live-elapsed{font-size:13px;font-weight:750;color:#c1273e;background:#fff0f2;border:1px solid #f4cbd2;border-radius:9px;padding:7px 10px;white-space:nowrap;font-variant-numeric:tabular-nums}
 body.dark .lb-live-elapsed{background:#4a2635;color:#fecdd3;border-color:#8e3645}
+
+/* Facebook-style interactive Live chat and reactions */
+.lb-live-social{border:1px solid #dae4f2;border-radius:15px;background:#f8fbff;padding:17px;margin:18px 0 10px}
+.lb-live-social-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:13px;border-bottom:1px solid #e2e9f4}
+.lb-live-social-head span{font-size:13px;color:#536b8a}
+.lb-live-comments{height:215px;overflow-y:auto;overscroll-behavior:contain;padding:14px 0;display:flex;flex-direction:column;gap:10px}
+.lb-live-comment{display:flex;gap:7px;align-items:flex-start;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.lb-live-comment b{flex:0 0 auto;color:#2462cc}
+.lb-live-comment span{min-width:0;flex:1}
+.lb-live-comment button{border:0;background:transparent;color:#9b263c;font-size:21px;line-height:1;padding:0 5px}
+.lb-live-comment-form{display:flex;gap:8px;margin-top:8px}
+.lb-live-comment-form input{flex:1;min-width:0;padding:11px 12px;border-radius:11px;border:1px solid #d7e2f2;background:var(--field,#fff);color:inherit}
+.lb-live-reactions{display:flex;gap:12px;margin-top:18px}
+.lb-live-reactions button{font-size:22px;border:1px solid #e2e8f4;background:#fff;border-radius:50%;height:47px;width:47px;display:grid;place-items:center;transition:transform .15s}
+.lb-live-reactions button.selected{box-shadow:0 0 0 3px #2563eb;border-color:#2563eb;transform:translateY(-3px)}
+.lb-live-social .muted{margin:14px 0 0;line-height:1.5}
+body.dark .lb-live-social{background:#202e43;border-color:#42536c}
+body.dark .lb-live-social-head{border-color:#42536c}
+body.dark .lb-live-social-head span{color:#aebddd}
+body.dark .lb-live-reactions button{background:#263854;border-color:#546987}
+@media(max-width:720px){.lb-live-social{padding:13px}.lb-live-reactions{justify-content:space-around}.lb-live-comment-form button{padding:9px 12px}}
