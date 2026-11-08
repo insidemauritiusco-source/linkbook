@@ -80,3 +80,26 @@ The live broadcast interface also provides microphone mute, a camera on/off cont
 - Original social-network user data and the dedicated Supabase backend were left unchanged.
 
 **Verification:** Updated repository files have been read back from GitHub. GitHub Pages deployment and multi-device live-video streaming should still be verified separately on actual Android devices. Public beta readiness is not confirmed; moderation, account/data deletion features, and production live infrastructure remain important before a broad launch.
+
+## 8 November 2026 — trust & safety hardening (beta)
+
+Implemented in the dedicated LinkBook Supabase project and on the GitHub Pages frontend:
+
+- Account blocking/unblocking with database RLS protection preventing blocked pairs from sending new messages/friend requests and viewing one another's social posts/profiles. Post comments, likes and saved-post inserts also check block relationships.
+- Private moderation queue and reports with statuses (open, reviewing, resolved, dismissed) and moderator notes; moderators can remove reported posts. Moderator roles cannot be assigned by ordinary users. **No moderators are assigned yet**; assign trusted accounts in `public.moderator_roles` via the secure Supabase dashboard only.
+- Database insert throttling for posts, comments, messages, live comments and reports. These limits deter accidental floods but do not replace CAPTCHA, abuse detection or more advanced IP/device controls.
+- Signed-in Safety & privacy page (desktop and mobile), report history, block controls, JSON account-data export, and an explicit irreversible account-deletion button.
+- A JWT-protected `linkbook-delete-account` Supabase Edge Function requiring the signed-in user's explicit confirmation. It removes LinkBook uploads in that user's folder before deleting their Auth account, cascading to related records. This action is destructive and was **not tested with a real user**.
+- Public beta [Privacy Notice](privacy.html) and [Community Rules](terms.html), linked from the login screen and Safety page. Operator identity, legal jurisdiction, and contact information should be reviewed before public release.
+
+### Checks and launch blockers
+
+- GitHub versions of `auth.js`, `app-cloud.js`, `live.js`, and `safety.js` passed JavaScript syntax parsing. This is not equivalent to automated or browser end-to-end testing.
+- Confirm Android front/back camera switch on a physical phone. Browser permission and camera hardware vary. The Android emulator available for testing has only one back camera and cannot verify the physical front/back switch.
+- Google OAuth must be enabled in Supabase Authentication > Providers > Google, with the Supabase callback configured on the Google Cloud OAuth client and LinkBook GitHub Pages return URL in Supabase Auth URL settings. **Not verified**.
+- Phone OTP requires a paid/working SMS provider under Supabase Authentication > Providers > Phone. **Not verified**.
+- In Supabase Auth settings, enable leaked-password protection; the Security Advisor continues to show this warning. See https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+- Test account registration and email verification, media upload, block, chat, reports, data export, and account deletion with controlled test accounts on distinct devices; no live human credentials were collected or used in this change.
+- The live broadcast stack remains experimental (WebRTC STUN only, up to four viewers, no TURN/SFU). Do not advertise it as production-scale Facebook Live, and do not promise live streaming connectivity on all networks.
+- File storage is public-readable by URL; posts and profiles are members-only in the database, but their uploaded media links can be shared externally. Do not claim uploaded media is private.
+- Keep LinkBook in public **beta** until the operator finishes testing, configures moderator ownership, and sets up incident response/contact and legal information.
