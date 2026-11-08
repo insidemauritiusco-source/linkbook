@@ -23,11 +23,24 @@
     const region=document.getElementById('linkbookCountryBadge');if(region)region.textContent='🇲🇺 '+t('Mauritius');
     refreshClock();
   }
+  const fullClock = new Intl.DateTimeFormat('en-GB',{
+    timeZone:'Indian/Mauritius',weekday:'short',day:'2-digit',month:'short',year:'numeric',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
+  });
+  const shortClock = new Intl.DateTimeFormat('en-GB',{
+    timeZone:'Indian/Mauritius',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
+  });
   function refreshClock(){
-    document.querySelectorAll('[data-mu-clock]').forEach(el=>{el.textContent=formatDateTime(Date.now())+' MUT';});
+    const now=new Date();
+    document.querySelectorAll('[data-mu-clock]').forEach(el=>{
+      const value=(el.getAttribute('data-mu-clock')==='short'?shortClock:fullClock).format(now)+' MUT';
+      if(el.textContent!==value)el.textContent=value;
+      if(el.tagName==='TIME')el.dateTime=now.toISOString();
+    });
   }
   function setLanguage(lang){if(!Object.hasOwn(languages,lang))return;localStorage.setItem(storageKey,lang);applyStatic();}
   window.LinkBookRegion=Object.freeze({country:'Mauritius',countryCode:'MU',timeZone:'Indian/Mauritius',languages,getLanguage,setLanguage,t,formatDateTime,applyStatic});
   document.addEventListener('DOMContentLoaded',applyStatic);
-  setInterval(refreshClock,30000);
+  setInterval(refreshClock,1000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClock();});
 })();
