@@ -3,6 +3,7 @@ const cfg = window.LINKBOOK_AUTH || {};
 const enabled = /^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(cfg.url || '') && /^(sb_publishable_|eyJ)/.test(cfg.publishableKey || '');
 const root = document.getElementById('authRoot');
 let client, mode='login', loaded=false, recovery=false;
+let pendingPhone='', phoneOtpSentAt=0;
 if(!enabled) {
   document.documentElement.classList.remove('auth-locked');
   loadApp();
@@ -20,6 +21,7 @@ function loadApp(){
   document.body.appendChild(s);
 }
 function draw(message='',error=false){
+  if(mode==='phone'||mode==='phone-code'){drawPhone(message,error);return;}
   const headings={login:'Welcome to LinkBook',signup:'Join LinkBook',forgot:'Reset your password',recover:'Choose a new password'};
   const explanations={login:'Sign in to continue.',signup:'Create your free LinkBook account.',forgot:'Get a secure password reset email.',recover:'Choose a secure new password.'};
   const signup=mode==='signup',forgot=mode==='forgot',reset=mode==='recover';
@@ -34,6 +36,7 @@ function draw(message='',error=false){
     '<button class="auth-submit" id="authSubmit" type="submit">'+(signup?'Create account':forgot?'Email reset link':reset?'Update password':'Sign in')+'</button></form>'+
     '<div class="auth-switch">'+(signup?'Already registered? <button type="button" data-auth-mode="login">Sign in</button>':forgot?'<button type="button" data-auth-mode="login">Back to sign in</button>':reset?'':'New to LinkBook? <button type="button" data-auth-mode="signup">Create account</button>')+'</div>'+
     (mode==='login'?'<button type="button" class="auth-forgot" data-auth-mode="forgot">Forgot password?</button>':'')+
+    (mode==='login'||mode==='signup'?'<div class="auth-phone-option"><span>or</span><button type="button" class="auth-phone-button" data-auth-mode="phone">📱 Continue with phone number</button></div>':'')+
     '<button type="button" class="auth-demo" id="authDemo">Continue with the free demo</button>'+
     '<p class="auth-footnote">Accounts use secure Supabase authentication. Signed-in posts, likes and messages sync through a secure cloud database. Free demo mode remains local to this browser.</p></div>';
   root.querySelector('form').addEventListener('submit',submit);
@@ -47,6 +50,93 @@ function draw(message='',error=false){
   });
   if(message)notice(message,error);
 }
+
+function normalizePhone(value){
+  const clean=String(value||'').trim().replace(/[\s().-]/g,'');
+  if(!/^\+?\d+$/.test(clean))throw Error('Enter a valid phone number using digits and a country code.');
+  let phone=clean;
+  if(/^\d{8}$/.test(phone))phone='+230'+phone;
+  else if(phone.startsWith('00'))phone='+'+phone.slice(2);
+  else if(!phone.startsWith('+'))throw Error('Include your country code, for example +230 for Mauritius.');
+  if(!/^\+[1-9]\d{6,14}$/.test(phone))throw Error('Use an international phone number, such as +230 5xxxxxxx.');
+  return phone;
+}
+function phoneError(error){
+  const message=String(error?.message||error||'Phone verification failed.');
+  if(/sms.*(disabled|provider|not configured)|phone provider.*disabled|unsupported.*phone|provider.*not enabled|sms provider/i.test(message))
+    return 'Phone sign-in needs an SMS provider enabled in LinkBook Supabase Auth settings. Email sign-in still works.';
+  if(/rate limit|too many|429/i.test(message))return 'Too many verification requests. Please wait before trying again.';
+  return message;
+}
+function drawPhone(message='',error=false){
+  const verify=mode==='phone-code';
+  root.innerHTML=
+    '<div class="auth-card"><div class="auth-intro"><div class="auth-mark">L</div>'+
+    '<h1>'+(verify?'Verify your phone':'Phone number login')+'</h1>'+
+    '<p>'+(verify?'Enter the SMS verification code sent to your phone.':'Sign in or create an account with an SMS code.')+'</p></div>'+
+    '<p id="authStatus" class="auth-status" role="status" aria-live="polite" hidden></p>'+
+    '<form id="authPhoneForm" class="auth-form">'+
+    (verify?
+      '<p class="auth-phone-target">Code sent to <strong>'+pendingPhone.replace(/[&<>"]/g,'')+'</strong></p>'+
+      '<label for="authOtp">Verification code</label><input id="authOtp" name="token" type="text" inputmode="numeric" pattern="[0-9]{6,8}" minlength="6" maxlength="8" autocomplete="one-time-code" required placeholder="Enter SMS code">'+
+      '<button class="auth-submit" type="submit">Verify and sign in</button>':
+      '<label for="authPhoneNumber">Mobile phone number</label>'+
+      '<input id="authPhoneNumber" name="phone" type="tel" autocomplete="tel" inputmode="tel" required maxlength="25" placeholder="+230 5xxxxxxx" aria-describedby="authPhoneHint">'+
+      '<p id="authPhoneHint" class="auth-phone-hint">For Mauritius, enter 8 digits or add +230. Other countries: include +country code.</p>'+
+      '<button class="auth-submit" type="submit">Send verification code</button>')+
+    '</form>'+
+    (verify?'<button type="button" class="auth-phone-text-button" id="authResendPhone">Resend SMS code</button>'+
+      '<button type="button" class="auth-phone-text-button" id="authChangePhone">Change phone number</button>':'')+
+    '<div class="auth-switch">Prefer email? <button type="button" data-auth-mode="login">Email and password login</button></div>'+
+    '<p class="auth-footnote">SMS delivery requires an enabled provider and may incur charges. Phone login may create a separate account from an existing email account; sign in with email to keep your previous posts.</p></div>';
+  root.querySelector('#authPhoneForm').addEventListener('submit',submitPhone);
+  root.querySelector('[data-auth-mode="login"]').addEventListener('click',()=>{mode='login';draw()});
+  root.querySelector('#authChangePhone')?.addEventListener('click',()=>{mode='phone';pendingPhone='';draw()});
+  root.querySelector('#authResendPhone')?.addEventListener('click',()=>sendPhoneCode(pendingPhone,true));
+  if(message)notice(message,error);
+}
+async function sendPhoneCode(phone,resend=false){
+  if(!client){notice('Authentication is loading. Please try again.',true);return;}
+  if(Date.now()-phoneOtpSentAt<60000){
+    const seconds=Math.ceil((60000-(Date.now()-phoneOtpSentAt))/1000);
+    notice('For security, wait '+seconds+' seconds before requesting another code.',true);return;
+  }
+  const form=root.querySelector('#authPhoneForm');
+  const button=resend?root.querySelector('#authResendPhone'):form?.querySelector('button[type="submit"]');
+  const prior=button?.textContent;
+  if(button){button.disabled=true;button.textContent='Sending…';}
+  try{
+    const {error}=await client.auth.signInWithOtp({phone,options:{channel:'sms'}});
+    if(error)throw error;
+    pendingPhone=phone;phoneOtpSentAt=Date.now();mode='phone-code';
+    draw('Verification code requested. Check your SMS messages.');
+  }catch(error){notice(phoneError(error),true);}
+  finally{if(button?.isConnected){button.disabled=false;button.textContent=prior;}}
+}
+async function submitPhone(event){
+  event.preventDefault();
+  const form=event.currentTarget;
+  if(mode==='phone'){
+    let phone;
+    try{phone=normalizePhone(new FormData(form).get('phone'));}
+    catch(error){notice(error.message,true);return;}
+    await sendPhoneCode(phone);return;
+  }
+  if(mode!=='phone-code'||!pendingPhone)return;
+  if(!client){notice('Authentication is loading. Please try again.',true);return;}
+  const token=String(new FormData(form).get('token')||'').trim();
+  if(!/^\d{6,8}$/.test(token)){notice('Enter the numeric SMS verification code.',true);return;}
+  const button=form.querySelector('button[type="submit"]');
+  button.disabled=true;const oldLabel=button.textContent;button.textContent='Verifying…';
+  try{
+    const {data,error}=await client.auth.verifyOtp({phone:pendingPhone,token,type:'sms'});
+    if(error)throw error;
+    if(!data?.user)throw Error('Unable to sign in. Please request a new code.');
+    enter(data.user);
+  }catch(error){notice(phoneError(error),true);}
+  finally{if(button.isConnected){button.disabled=false;button.textContent=oldLabel;}}
+}
+
 function notice(text,error=false){
   const el=root.querySelector('#authStatus');
   if(!el)return;
