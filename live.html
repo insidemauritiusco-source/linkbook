@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2563eb"><title>LinkBook Live — Broadcast & Watch</title>
+<link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="live.css">
+</head>
+<body>
+<header class="top live-top"><a class="brand live-brand" href="./"><span class="mark">L</span><strong>LinkBook</strong></a><strong class="live-header-title">🔴 LIVE</strong><a class="secondary live-home" href="./">← Back to feed</a></header>
+<main class="live-shell">
+<section class="live-intro"><h1>🔴 LinkBook Live</h1><p>Broadcast with your camera or watch live videos from your LinkBook community.</p><div id="live-status" role="status" aria-live="polite"></div></section>
+<div id="login-notice" class="panel" hidden><h2>Sign in to go live</h2><p>Live videos are available to signed-in LinkBook members.</p><a class="primary live-link" href="./">Sign in to LinkBook</a></div>
+<div id="live-app" hidden>
+<section class="panel" id="go-live-panel">
+<h2>Start a live video</h2><label class="live-label" for="live-title">Live title</label>
+<input id="live-title" class="form-input live-title" maxlength="110" placeholder="What's happening today?" value="Hello from Mauritius 🇲🇺">
+<div class="live-controls"><button class="primary" id="start-live">📷 Go Live</button><button class="secondary" id="flip-camera" disabled>🔄 Switch camera</button><button class="secondary" id="mic-toggle" disabled>🎙 Mute</button><button class="secondary" id="cam-toggle" disabled>📷 Hide camera</button><button class="secondary" id="end-live" disabled>⏹ End Live</button></div>
+<div class="live-stage" id="host-stage" hidden><video autoplay muted playsinline id="host-video"></video><span class="live-tag">● LIVE</span></div>
+<div id="live-broadcast-details" hidden><p id="live-audience">Viewers connected: 0</p><button class="secondary" id="share-live">🔗 Copy live link</button></div>
+</section>
+<section class="panel"><h2>Live now</h2><p class="live-subtitle">Active broadcasts from LinkBook members.</p><div id="live-list">Loading live videos…</div></section>
+<section class="panel" id="watch-panel" hidden><h2 id="watch-title">Live broadcast</h2><div class="live-stage"><video id="viewer-video" autoplay playsinline controls></video><span class="live-tag">● LIVE</span></div><div class="live-controls"><button id="unmute-viewer" class="secondary">🔊 Enable sound</button><button id="leave-live" class="secondary">Leave live</button></div><p id="watch-message" aria-live="polite"></p></section>
+<p class="live-footnote">Small-audience preview: video is shared directly between browsers using WebRTC. Camera/microphone permission and an HTTPS connection are required. Some networks may not connect without a TURN relay. Live is not recorded and is not intended for large audiences. Do not broadcast sensitive information.</p>
+</div>
+</main>
+<script type="module" src="live.js"></script>
+</body></html>
