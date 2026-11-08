@@ -11,6 +11,7 @@ const rtcConfig={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:s
 let active=null,mode='idle',media=null,peers=new Map(),peer=null,selectedId=null;
 let cursor=0,interval=null,beat=null,durationTicker=null,wakeLock=null,fetching=false,sessions=[],warning='',loading=false,lastListRefresh=0,hostNames={};
 let liveComments=[],liveReactions=[],interactionTimer=null,interactionLoading=false,micMuted=false,cameraOff=false,cameraFacing='user',lastCommentSent=0;
+let cameraDevices=[],cameraBusy=false,cameraId=null;
 const uid=()=>user()?.id;
 const check=res=>{if(res.error)throw res.error;return res.data;};
 const page=()=>document.querySelector('#content .lb-live-page');
@@ -106,21 +107,139 @@ async function toggleCamera(){
  track.enabled=!track.enabled;cameraOff=!track.enabled;
  const btn=$('#liveCamera');if(btn)btn.textContent=track.enabled?'📷 Camera off':'📷 Camera on';
 }
-async function switchCamera(){
- if(!media||mode!=='hosting'||!navigator.mediaDevices?.getUserMedia)return;
- try{
-  const next=cameraFacing==='user'?'environment':'user';
-  const newStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:next}},audio:false});
-  const replacement=newStream.getVideoTracks()[0];
-  for(const pc of peers.values()){
-   const sender=pc.getSenders().find(x=>x.track?.kind==='video');
-   if(sender)await sender.replaceTrack(replacement);
+function labelIsRear(label){return /rear|back|environment|world|arrière|arriere|trasera|rückseite/i.test(label||'');}
+function labelIsFront(label){return /front|user|selfie|face|avant|frontal/i.test(label||'');}
+function currentCameraTrack(){return media?.getVideoTracks()[0]||null;}
+function detectFacing(track){
+ const settings=track?.getSettings?.()||{};
+ if(settings.facingMode==='user'||settings.facingMode==='environment')return settings.facingMode;
+ const device=cameraDevices.find(x=>x.deviceId===settings.deviceId);
+ if(labelIsRear(device?.label||track?.label))return 'environment';
+ if(labelIsFront(device?.label||track?.label))return 'user';
+ return cameraFacing;
+}
+async function listCameras(){
+ if(!navigator.mediaDevices?.enumerateDevices)return [];
+ const available=await navigator.mediaDevices.enumerateDevices();
+ cameraDevices=available.filter(d=>d.kind==='videoinput'&&d.deviceId);
+ return cameraDevices;
+}
+function cameraDisplayName(d,i){
+ if(!d)return 'Camera '+(i+1);
+ return d.label||'Camera '+(i+1);
+}
+function renderCameraControls(){
+ const select=$('#liveCameraSelect'),state=$('#liveCameraStatus'),track=currentCameraTrack();
+ if(!track||mode!=='hosting')return;
+ const settings=track.getSettings?.()||{};
+ cameraId=settings.deviceId||cameraId;
+ cameraFacing=detectFacing(track);
+ const local=$('#liveLocal');
+ if(local)local.classList.toggle('lb-mirror',cameraFacing==='user');
+ if(select){
+  const before=select.value;
+  select.innerHTML='';
+  cameraDevices.forEach((device,i)=>{
+   const option=document.createElement('option');
+   option.value=device.deviceId;
+   option.textContent=cameraDisplayName(device,i);
+   select.appendChild(option);
+  });
+  select.disabled=cameraBusy||cameraDevices.length<=1;
+  if(cameraDevices.some(x=>x.deviceId===cameraId))select.value=cameraId;
+  else if(before&&cameraDevices.some(x=>x.deviceId===before))select.value=before;
+ }
+ for(const id of ['liveFront','liveBack','liveFlip']){
+  const button=$(id);if(button)button.disabled=cameraBusy||cameraDevices.length<=1;
+ }
+ if(state){
+  if(cameraDevices.length<=1){
+   state.textContent='Only one camera detected. A laptop webcam cannot switch to a rear camera; open LinkBook on a phone with front and back cameras.';
+  }else{
+   const current=cameraDevices.find(d=>d.deviceId===cameraId);
+   state.textContent='Using '+(cameraFacing==='environment'?'back camera':cameraFacing==='user'?'front camera':'camera')+(current?.label?' — '+current.label:'')+'. Choose Front, Back, or a specific camera.';
   }
-  const old=media.getVideoTracks()[0];media.removeTrack(old);old.stop();media.addTrack(replacement);
-  cameraFacing=next;cameraOff=false;
-  const video=$('#liveLocal');if(video)video.srcObject=media;
-  const btn=$('#liveCamera');if(btn)btn.textContent='📷 Camera off';
- }catch(e){toast('Camera switch not available: '+(e.message||e));}
+ }
+}
+async function refreshCameras(){
+ try{await listCameras();renderCameraControls();}
+ catch(e){const el=$('#liveCameraStatus');if(el)el.textContent='Unable to list cameras: '+(e.message||e);}
+}
+async function applyVideoTrack(newTrack,oldTrack){
+ if(!media||mode!=='hosting'){newTrack.stop();return false;}
+ const senders=[...peers.values()].flatMap(pc=>pc.getSenders().filter(sender=>sender.track?.kind==='video'));
+ await Promise.all(senders.map(sender=>sender.replaceTrack(newTrack)));
+ if(oldTrack&&media.getTracks().includes(oldTrack))media.removeTrack(oldTrack);
+ oldTrack?.stop();
+ newTrack.enabled=!cameraOff;
+ media.addTrack(newTrack);
+ const video=$('#liveLocal');if(video){video.srcObject=media;video.play().catch(()=>{});}
+ return true;
+}
+async function switchCamera(direction='toggle'){
+ if(cameraBusy||mode!=='hosting'||!media||!navigator.mediaDevices?.getUserMedia)return;
+ cameraBusy=true;
+ const oldTrack=currentCameraTrack(),currentStream=media,originalFacing=cameraFacing;
+ let stoppedOld=false,newTrack=null;
+ try{
+  await listCameras();
+  if(cameraDevices.length<=1){
+   toast('Only one camera is available. On a laptop there is usually no rear camera; try a phone.');
+   return;
+  }
+  const oldId=oldTrack?.getSettings?.().deviceId||cameraId;
+  const other=cameraDevices.filter(x=>x.deviceId!==oldId);
+  const wanted=direction==='toggle'?(originalFacing==='user'?'environment':'user'):direction;
+  const byId=cameraDevices.find(x=>x.deviceId===direction);
+  const named=other.find(x=>wanted==='environment'?labelIsRear(x.label):labelIsFront(x.label));
+  const target=byId||named||(direction==='toggle'?other[0]:null);
+  if(byId?.deviceId===oldId){
+   toast('That camera is already selected.');
+   return;
+  }
+  const constraints=target?.deviceId?{deviceId:{exact:target.deviceId}}:{facingMode:{exact:wanted}};
+  // Some browsers support only one open camera at a time.
+  async function openTarget(){
+   return navigator.mediaDevices.getUserMedia({audio:false,video:constraints});
+  }
+  let nextStream;
+  try{nextStream=await openTarget();}
+  catch(e){
+   if(oldTrack?.readyState==='live'&&['NotReadableError','AbortError','NotAllowedError','OverconstrainedError'].includes(e.name)){
+    if(e.name==='NotAllowedError')throw e;
+    // Releasing the previous track is required by some mobile camera drivers.
+    oldTrack.stop();stoppedOld=true;
+    nextStream=await openTarget();
+   }else throw e;
+  }
+  newTrack=nextStream.getVideoTracks()[0];
+  if(!newTrack)throw Error('The selected camera returned no video.');
+  if(mode!=='hosting'||media!==currentStream){newTrack.stop();return;}
+  const got=newTrack.getSettings?.()||{};
+  if(!target&&wanted&&got.facingMode&&got.facingMode!==wanted){
+   newTrack.stop();
+   throw Error('This browser could not select the '+(wanted==='environment'?'back':'front')+' camera.');
+  }
+  const success=await applyVideoTrack(newTrack,oldTrack);
+  if(!success)return;
+  cameraId=got.deviceId||target?.deviceId||null;
+  cameraFacing=got.facingMode||(
+   labelIsRear(target?.label)?'environment':labelIsFront(target?.label)?'user':wanted);
+  await refreshCameras();
+  toast('Camera changed to '+(cameraFacing==='environment'?'back':'front')+'.');
+ }catch(e){
+  if(newTrack&&newTrack.readyState==='live'&&!media?.getTracks().includes(newTrack))newTrack.stop();
+  if(stoppedOld&&mode==='hosting'&&media===currentStream){
+   try{
+    const restoreSettings=oldTrack?.getSettings?.()||{};
+    const recovery=await navigator.mediaDevices.getUserMedia({audio:false,video:restoreSettings.deviceId?{deviceId:{exact:restoreSettings.deviceId}}:{facingMode:{ideal:originalFacing}}});
+    const back=recovery.getVideoTracks()[0];
+    if(back){await applyVideoTrack(back,oldTrack);cameraFacing=originalFacing;}
+   }catch(recoveryErr){console.warn('Camera restoration failed:',recoveryErr);}
+  }
+  await refreshCameras();
+  toast('Camera switch failed: '+(e.message||e)+'. Try choosing the camera from the list, or check browser camera permissions.');
+ }finally{cameraBusy=false;renderCameraControls();}
 }
 
 function elapsedTime(start){
@@ -151,7 +270,7 @@ function release(){
  wakeLock?.release().catch(()=>{});wakeLock=null;
  peers.forEach(closePeer);peers.clear();closePeer(peer);peer=null;
  media?.getTracks().forEach(t=>t.stop());media=null;
- cursor=0;selectedId=null;active=null;mode='idle';fetching=false;
+ cursor=0;selectedId=null;active=null;mode='idle';fetching=false;cameraDevices=[];cameraId=null;cameraBusy=false;
 }
 async function stopBroadcast(){
  if(mode!=='hosting')return;
@@ -284,7 +403,7 @@ async function goLive(title){
  try{
   if(!navigator.mediaDevices?.getUserMedia)throw Error('Camera access requires HTTPS and a supported browser.');
   // Camera permission must be requested by clicking Go Live.
-  media=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:{echoCancellation:true}});
+  media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720}},audio:{echoCancellation:true}});
   const prior=check(await db().from('live_sessions').select('id').eq('host_id',uid()).eq('status','live'));
   if(prior?.length)check(await db().from('live_sessions').update({status:'ended',ended_at:new Date().toISOString()}).eq('host_id',uid()).eq('status','live'));
   const created=check(await db().from('live_sessions').insert({host_id:uid(),title:title.trim()}).select('*').single());
@@ -294,6 +413,7 @@ async function goLive(title){
   interactionTimer=setInterval(()=>{loadInteractions().catch(console.warn)},3500);
   keepScreenAwake().catch(console.warn);
   draw();const video=$('#liveLocal');if(video){video.srcObject=media;video.play().catch(()=>{});}
+  await refreshCameras();
   startPolling();loadInteractions().catch(console.warn);
  }catch(e){release();toast(e.message||'Unable to start the broadcast.');draw();}
  finally{loading=false}
@@ -322,7 +442,7 @@ function draw(){
  el.dataset.liveState=mode;
  const wrap=el.querySelector('#liveBody');if(!wrap)return;
  if(mode==='hosting'){
-  wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div><video id="liveLocal" autoplay playsinline muted></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><span id="liveViewerCount">'+peers.size+' / '+MAX_VIEWERS+' viewers connected</span><span id="liveElapsed" class="lb-live-elapsed">⏱ 00:00:00 live</span><button id="liveShare" class="secondary">Share</button><button id="liveMute" class="secondary">Mute mic</button><button id="liveCamera" class="secondary">📷 Camera off</button><button id="liveFlip" class="secondary">🔄 Switch camera</button><button id="liveEnd" class="primary lb-live-stop">End Live</button></div><p class="muted">No fixed time limit. Keep this page open and your device awake; leaving Live or losing internet can end the broadcast.</p>'+interactionsMarkup();
+  wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div><video id="liveLocal" autoplay playsinline muted></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><span id="liveViewerCount">'+peers.size+' / '+MAX_VIEWERS+' viewers connected</span><span id="liveElapsed" class="lb-live-elapsed">⏱ 00:00:00 live</span><button id="liveShare" class="secondary">Share</button><button id="liveMute" class="secondary">Mute mic</button><button id="liveCamera" class="secondary">📷 Camera off</button><button id="liveFront" class="secondary">🤳 Front camera</button><button id="liveBack" class="secondary">📷 Back camera</button><button id="liveFlip" class="secondary">🔄 Switch</button><button id="liveEnd" class="primary lb-live-stop">End Live</button></div><div class="lb-camera-chooser"><label for="liveCameraSelect">Available cameras</label><select id="liveCameraSelect" aria-label="Select camera"><option value="">Detecting cameras…</option></select><p id="liveCameraStatus" role="status">Checking front and back cameras…</p></div><p class="muted">No fixed time limit. Keep this page open and your device awake; leaving Live or losing internet can end the broadcast.</p>'+interactionsMarkup();
   const v=$('#liveLocal');if(v&&media){v.srcObject=media;v.play().catch(()=>{});}
  }else if(mode==='watching'){
   wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div><video id="liveRemote" autoplay playsinline controls></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><span id="liveElapsed" class="lb-live-elapsed">⏱ 00:00:00 live</span><button id="liveShare" class="secondary">Share</button><button id="liveLeave" class="primary">Leave</button></div><p class="muted">Allow your browser to play the video. The broadcaster controls the microphone and camera.</p>'+interactionsMarkup();
@@ -360,7 +480,9 @@ document.addEventListener('click',e=>{
   return;
  }
  if(b.id==='liveCamera'){toggleCamera().catch(console.error);return;}
- if(b.id==='liveFlip'){switchCamera().catch(console.error);return;}
+ if(b.id==='liveFront'){switchCamera('user').catch(console.error);return;}
+ if(b.id==='liveBack'){switchCamera('environment').catch(console.error);return;}
+ if(b.id==='liveFlip'){switchCamera('toggle').catch(console.error);return;}
  if(b.id==='liveEnd'){stopBroadcast().catch(console.error);return;}
  if(b.id==='liveLeave'){stopWatching().catch(console.error);return;}
  if(b.id==='liveMute'&&media){
@@ -372,6 +494,9 @@ document.addEventListener('click',e=>{
   if(navigator.share)navigator.share({title:'Watch LinkBook Live',url:link}).catch(()=>{});
   else navigator.clipboard?.writeText(link).then(()=>toast('Live link copied.')).catch(()=>toast(link));
  }
+});
+document.addEventListener('change',e=>{
+ if(e.target.id==='liveCameraSelect'&&e.target.value){switchCamera(e.target.value).catch(console.error);}
 });
 document.addEventListener('visibilitychange',()=>{
  if(document.visibilityState==='visible'&&mode==='hosting'){
