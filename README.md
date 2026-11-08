@@ -36,3 +36,21 @@ Live site: https://insidemauritiusco-source.github.io/linkbook/
 - `auth.js` chooses `cloud.js` for logged-in users, `app.js` for the demo.
 - `cloud.css` adds styling to the online feed and chat.
 - `auth-config.js` contains only the public Supabase publishable key. **Never add service_role or secret keys to GitHub Pages code.**
+
+## LinkBook Pro cloud upgrade (November 2026)
+
+The website now includes cloud-based social features **for signed-in users** using the dedicated LinkBook Supabase project. This repository's authentication flow selects `app-cloud.js` when the user signs in, and leaves guest demo mode on `app.js`.
+
+The shared database now contains:
+- member profiles
+- public-to-members text/photo/video posts
+- likes, comments and saved posts
+- friend requests, acceptance and removal
+- private chats between accepted friends
+- notifications and abuse reports
+
+Uploaded post media is public-readable. Supported files: JPEG, PNG, WebP, GIF, MP4 and WebM (up to 25 MB). The private chat database is access-controlled by Supabase Row Level Security (RLS). Realtime updates use Supabase Postgres changes and network access.
+
+**Important:** This is a first cloud release and has not been end-to-end tested with multiple human accounts. Guest/demo activity will NOT migrate automatically to cloud posts. Reports are stored but there is not yet an admin moderation interface, blocking feature, anti-spam rate limiting, or private post audience controls. Before public launch, test two independent signup/email-confirmation flows, chat and media uploads, configure production SMTP, enable leaked password protection, and implement moderation, privacy policy and deletion controls.
+
+Do not put service-role or secret API keys into public JavaScript. The supplied `auth-config.js` contains only a Supabase publishable key.
