@@ -1,4 +1,4 @@
-/* LinkBook: Supabase email authentication. The offline feed remains a local demo. */
+/* LinkBook: Supabase accounts + cloud-backed social experience. */
 const cfg = window.LINKBOOK_AUTH || {};
 const enabled = /^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(cfg.url || '') && /^(sb_publishable_|eyJ)/.test(cfg.publishableKey || '');
 const root = document.getElementById('authRoot');
@@ -15,7 +15,7 @@ function loadApp(){
   if(loaded)return;
   loaded=true;
   const s=document.createElement('script');
-  s.src='app.js';
+  s.src=window.linkbookSignedInUser && window.linkbookSupabase ? 'app-cloud.js' : 'app.js';
   s.onerror=()=>alert('LinkBook could not load. Please refresh.');
   document.body.appendChild(s);
 }
@@ -35,11 +35,12 @@ function draw(message='',error=false){
     '<div class="auth-switch">'+(signup?'Already registered? <button type="button" data-auth-mode="login">Sign in</button>':forgot?'<button type="button" data-auth-mode="login">Back to sign in</button>':reset?'':'New to LinkBook? <button type="button" data-auth-mode="signup">Create account</button>')+'</div>'+
     (mode==='login'?'<button type="button" class="auth-forgot" data-auth-mode="forgot">Forgot password?</button>':'')+
     '<button type="button" class="auth-demo" id="authDemo">Continue with the free demo</button>'+
-    '<p class="auth-footnote">Accounts use secure Supabase authentication. Demo posts, likes, and messages stay on this browser only; they are not shared between members.</p></div>';
+    '<p class="auth-footnote">Accounts use secure Supabase authentication. Signed-in posts, likes and messages sync through a secure cloud database. Free demo mode remains local to this browser.</p></div>';
   root.querySelector('form').addEventListener('submit',submit);
   root.querySelectorAll('[data-auth-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.authMode;draw()}));
   root.querySelector('#authDemo').addEventListener('click',()=>{
     window.linkbookSignedInUser=null;
+    window.linkbookSupabase=null;
     root.hidden=true;
     document.documentElement.classList.remove('auth-locked');
     loadApp();
@@ -71,6 +72,7 @@ function enter(user){
   if(!user||recovery)return;
   if(loaded && window.linkbookSignedInUser?.id !== user.id){location.reload();return;}
   window.linkbookSignedInUser=user;
+  window.linkbookSupabase=client;
   root.hidden=true;document.documentElement.classList.remove('auth-locked');
   loadApp();
   if(!document.getElementById('linkbookSignout')){
@@ -84,7 +86,7 @@ function enter(user){
     document.querySelector('.header-actions')?.prepend(btn);
   }
   const note=document.querySelector('.note small');
-  if(note)note.textContent='Email accounts are online. Feed posts and messages remain local demo data; they are not shared between users.';
+  if(note)note.textContent='LinkBook Pro connects your posts, friendships and messages online.';
 }
 async function submit(e){
   e.preventDefault();
