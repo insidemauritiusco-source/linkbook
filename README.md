@@ -64,3 +64,10 @@ Do not put service-role or secret API keys into public JavaScript. The supplied 
 - The live page shares a link of the form `?live=<session UUID>`. Sessions expire from the listing after roughly 60 seconds without heartbeat.
 - **Beta only**: max 4 viewer connections per broadcast; STUN-only, so some home/mobile networks will not connect without TURN. Video is not recorded and does not scale to a large audience. Browser tabs must remain open.
 - Not yet verified end-to-end using two browsers/accounts. A production live video feature needs a managed SFU/streaming service, moderation, connection safeguards and TURN.
+
+
+## Live comments and reactions
+
+Signed-in viewers and broadcasters can exchange live comments and react with Like, Love, Haha and Wow. A member has one reaction per live session and can update or remove it. Comment authors and hosts can remove comments. Database row-level security protects operations; these are beta features with no automated spam filtering or moderation dashboard.
+
+The live broadcast interface also provides microphone mute, a camera on/off control, an optional front/back camera switch where the device supports it, share link, viewer count, and elapsed live duration. Streams currently use WebRTC browser-to-browser connections (up to 4 viewers; no TURN relay) and **are not equivalent to a production-scale Facebook Live service**. Long streams depend on uninterrupted device and network availability. Test with two distinct signed-in accounts before public launch.
