@@ -71,3 +71,12 @@ Do not put service-role or secret API keys into public JavaScript. The supplied 
 Signed-in viewers and broadcasters can exchange live comments and react with Like, Love, Haha and Wow. A member has one reaction per live session and can update or remove it. Comment authors and hosts can remove comments. Database row-level security protects operations; these are beta features with no automated spam filtering or moderation dashboard.
 
 The live broadcast interface also provides microphone mute, a camera on/off control, an optional front/back camera switch where the device supports it, share link, viewer count, and elapsed live duration. Streams currently use WebRTC browser-to-browser connections (up to 4 viewers; no TURN relay) and **are not equivalent to a production-scale Facebook Live service**. Long streams depend on uninterrupted device and network availability. Test with two distinct signed-in accounts before public launch.
+
+## November 8, 2026 — mobile branding and camera control patch
+
+- Added an installable-web-app manifest and an original LinkBook SVG icon, with browser title, mobile app name, and theme metadata.
+- Fixed the camera control lookup in the Live screen so the Front, Back and Switch buttons receive the appropriate disabled/enabled states when camera devices are detected.
+- Refreshed the Live script URL version to help browsers fetch the corrected controller.
+- Original social-network user data and the dedicated Supabase backend were left unchanged.
+
+**Verification:** Updated repository files have been read back from GitHub. GitHub Pages deployment and multi-device live-video streaming should still be verified separately on actual Android devices. Public beta readiness is not confirmed; moderation, account/data deletion features, and production live infrastructure remain important before a broad launch.
