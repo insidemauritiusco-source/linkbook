@@ -273,6 +273,13 @@ async function switchCamera(direction='toggle'){
  }
 }
 
+function startedAtMarkup(){
+ if(!active?.started_at)return '';
+ return '<p class="lb-live-started">Broadcast started: <time datetime="'+safe(active.started_at)+'">'+safe(labelTime(active.started_at))+' MUT</time></p>';
+}
+function liveStageClock(){
+ return '<time class="lb-video-clock" data-mu-clock="short" aria-label="Current Mauritius time">Mauritius time</time>';
+}
 function elapsedTime(start){
  const total=Math.max(0,Math.floor((Date.now()-new Date(start).getTime())/1000))||0;
  const days=Math.floor(total/86400),hours=Math.floor((total%86400)/3600),minutes=Math.floor((total%3600)/60),seconds=total%60;
@@ -473,10 +480,10 @@ function draw(){
  el.dataset.liveState=mode;
  const wrap=el.querySelector('#liveBody');if(!wrap)return;
  if(mode==='hosting'){
-  wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div><video id="liveLocal" autoplay playsinline muted></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><span id="liveViewerCount">'+peers.size+' / '+MAX_VIEWERS+' viewers connected</span><span id="liveElapsed" class="lb-live-elapsed">⏱ 00:00:00 live</span><button id="liveShare" class="secondary">Share</button><button id="liveMute" class="secondary">Mute mic</button><button id="liveCamera" class="secondary">📷 Camera off</button><button id="liveFront" class="secondary">🤳 Front camera</button><button id="liveBack" class="secondary">📷 Back camera</button><button id="liveFlip" class="secondary">🔄 Switch</button><button id="liveEnd" class="primary lb-live-stop">End Live</button></div><div class="lb-camera-chooser"><label for="liveCameraSelect">Available cameras</label><select id="liveCameraSelect" aria-label="Select camera"><option value="">Detecting cameras…</option></select><p id="liveCameraStatus" role="status">Checking front and back cameras…</p></div><p class="muted">No fixed time limit. Keep this page open and your device awake; leaving Live or losing internet can end the broadcast.</p>'+interactionsMarkup();
+  wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div>'+liveStageClock()+'<video id="liveLocal" autoplay playsinline muted></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><span id="liveViewerCount">'+peers.size+' / '+MAX_VIEWERS+' viewers connected</span><span id="liveElapsed" class="lb-live-elapsed">⏱ 00:00:00 live</span><button id="liveShare" class="secondary">Share</button><button id="liveMute" class="secondary">Mute mic</button><button id="liveCamera" class="secondary">📷 Camera off</button><button id="liveFront" class="secondary">🤳 Front camera</button><button id="liveBack" class="secondary">📷 Back camera</button><button id="liveFlip" class="secondary">🔄 Switch</button><button id="liveEnd" class="primary lb-live-stop">End Live</button></div>'+startedAtMarkup()+'<div class="lb-camera-chooser"><label for="liveCameraSelect">Available cameras</label><select id="liveCameraSelect" aria-label="Select camera"><option value="">Detecting cameras…</option></select><p id="liveCameraStatus" role="status">Checking front and back cameras…</p></div><p class="muted">No fixed time limit. Keep this page open and your device awake; leaving Live or losing internet can end the broadcast.</p>'+interactionsMarkup();
   const v=$('#liveLocal');if(v&&media){v.srcObject=media;v.play().catch(()=>{});}
  }else if(mode==='watching'){
-  wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div><video id="liveRemote" autoplay playsinline controls></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><span id="liveElapsed" class="lb-live-elapsed">⏱ 00:00:00 live</span><button id="liveShare" class="secondary">Share</button><button id="liveLeave" class="primary">Leave</button></div><p class="muted">Allow your browser to play the video. The broadcaster controls the microphone and camera.</p>'+interactionsMarkup();
+  wrap.innerHTML='<div class="lb-live-stage"><div class="lb-live-pill">● LIVE</div>'+liveStageClock()+'<video id="liveRemote" autoplay playsinline controls></video></div><div class="lb-live-controls"><strong>'+safe(active?.title)+'</strong><span id="liveElapsed" class="lb-live-elapsed">⏱ 00:00:00 live</span><button id="liveShare" class="secondary">Share</button><button id="liveLeave" class="primary">Leave</button></div>'+startedAtMarkup()+'<p class="muted">Allow your browser to play the video. The broadcaster controls the microphone and camera.</p>'+interactionsMarkup();
   // On an incidental re-render, restore attached stream.
   const v=$('#liveRemote');if(v&&peer?.getReceivers().length){const tracks=peer.getReceivers().map(r=>r.track).filter(Boolean);if(tracks.length)v.srcObject=new MediaStream(tracks);}
  }else{
@@ -484,6 +491,7 @@ function draw(){
   '<h2 class="lb-live-subheading">Live now</h2><div id="liveListings">'+(sessions.length?sessions.map(s=>'<section class="panel lb-live-listing"><div><strong>🔴 '+safe(s.title)+'</strong><p class="muted">'+safe(hostNames[s.host_id]||'LinkBook member')+' · '+labelTime(s.started_at)+' MUT</p></div>'+(s.host_id===uid()?'<span class="muted">Your live</span>':'<button class="primary" data-watch="'+s.id+'">Watch Live</button>')+'</section>').join(''):'<section class="panel empty">No active broadcasts right now. Be the first to go live!</section>')+'</div>';
  }
  updateDuration();drawInteractions();
+ document.querySelectorAll("[data-mu-clock]").forEach(el=>{const opts={timeZone:"Indian/Mauritius",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false};if(el.getAttribute("data-mu-clock")!=="short")Object.assign(opts,{weekday:"short",day:"2-digit",month:"short",year:"numeric"});el.textContent=new Intl.DateTimeFormat("en-GB",opts).format(new Date())+" MUT";});
  const msg=el.querySelector('#liveNotice');if(msg){msg.textContent=warning;msg.hidden=!warning;}
 }
 async function render(root){
@@ -491,7 +499,7 @@ async function render(root){
   root.innerHTML='<section class="panel"><h2>Live</h2><p>Sign in to watch or start a Live broadcast.</p></section>';return;
  }
  if(page())return; // Preserve video element on regular feed refresh.
- root.innerHTML='<div class="lb-live-page"><h1 class="page-title">🔴 LinkBook Live <span class="lb-live-beta">BETA</span></h1><p id="liveNotice" class="lb-live-notice" role="status" hidden></p><div id="liveBody"><section class="panel empty">Loading live broadcasts…</section></div></div>';
+ root.innerHTML='<div class="lb-live-page"><h1 class="page-title">🔴 LinkBook Live <span class="lb-live-beta">BETA</span></h1><div class="lb-live-timebar"><strong>🇲🇺 Live Mauritius date &amp; time</strong><time data-mu-clock aria-live="off">Loading…</time></div><p id="liveNotice" class="lb-live-notice" role="status" hidden></p><div id="liveBody"><section class="panel empty">Loading live broadcasts…</section></div></div>';
  try{await loadSessions();draw();const requested=new URLSearchParams(location.search).get('live');if(requested&&/^[0-9a-f-]{36}$/i.test(requested)){history.replaceState(null,'',location.pathname);await watch(requested);}}catch(e){toast(e.message||'Could not load live broadcasts.');draw();}
 }
 document.addEventListener('submit',e=>{
