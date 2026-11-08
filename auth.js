@@ -4,6 +4,47 @@ const enabled = /^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(cfg.url || '') && /^
 const root = document.getElementById('authRoot');
 let client, mode='login', loaded=false, recovery=false;
 let pendingPhone='', phoneOtpSentAt=0;
+let authServices=null,authServicesError='';
+function updateLoginReadiness(){
+  const status=root.querySelector('#authProviderReadiness');
+  if(status){
+    if(authServicesError)status.textContent='Google / SMS configuration could not be checked. You can still try email sign-in.';
+    else if(!authServices)status.textContent='Checking available sign-in methods…';
+    else status.textContent='Google: '+(authServices.google?'enabled — complete a Google login to test':'not enabled')+
+      ' · Phone SMS: '+(authServices.phone?'configured — test SMS delivery':'not configured');
+  }
+  const google=root.querySelector('#authGoogle');
+  if(google&&authServices&&!authServices.google){
+    google.disabled=true;google.title='Google login needs to be enabled in Supabase Authentication';
+  }
+  const phone=root.querySelector('[data-auth-mode="phone"]');
+  if(phone&&authServices&&!authServices.phone){
+    phone.disabled=true;phone.title='Phone login requires an enabled SMS provider in Supabase';
+  }
+  const send=root.querySelector('#authPhoneForm button[type="submit"]');
+  if(send&&mode==='phone'&&authServices&&!authServices.phone){
+    send.disabled=true;send.title='SMS login is not configured in Supabase';
+  }
+}
+async function checkAuthProviderSettings(){
+  try{
+    const response=await fetch(cfg.url+'/auth/v1/settings',{
+      headers:{apikey:cfg.publishableKey},cache:'no-store'
+    });
+    if(!response.ok)throw Error('Provider configuration unavailable');
+    const settings=await response.json();
+    const provider=String(settings.sms_provider||'').toLowerCase();
+    authServices={
+      google:settings.external?.google===true,
+      phone:settings.external?.phone===true && provider!=='' && provider!=='none' && provider!=='disabled'
+    };
+    authServicesError='';
+  }catch(err){
+    authServicesError='unavailable';
+    console.warn('Could not check login provider settings:',err?.message||'Network issue');
+  }
+  updateLoginReadiness();
+}
 if(!enabled) {
   document.documentElement.classList.remove('auth-locked');
   loadApp();
@@ -38,6 +79,7 @@ function draw(message='',error=false){
     (mode==='login'?'<button type="button" class="auth-forgot" data-auth-mode="forgot">Forgot password?</button>':'')+
     (mode==='login'||mode==='signup'?'<div class="auth-phone-option"><span>or</span><button type="button" class="auth-phone-button" data-auth-mode="phone">📱 Continue with phone number</button></div>':'')+
     (mode==='login'||mode==='signup'?'<button type="button" class="auth-google-button" id="authGoogle"><span class="auth-google-mark" aria-hidden="true">G</span> Continue with Google</button>':'')+
+    (mode==='login'||mode==='signup'?'<p id="authProviderReadiness" class="auth-footnote" role="status" aria-live="polite">Checking available sign-in methods…</p>':'')+
     '<button type="button" class="auth-demo" id="authDemo">Continue with the free demo</button>'+
     '<p class="auth-footnote">Accounts use secure Supabase authentication. Signed-in posts, likes and messages sync through a secure cloud database. Free demo mode remains local to this browser. LinkBook is in public beta. Please review our <a href="privacy.html">Privacy Notice</a> and <a href="terms.html">Community Rules</a> before registering.</p></div>';
   root.querySelector('form').addEventListener('submit',submit);
@@ -50,6 +92,7 @@ function draw(message='',error=false){
     document.documentElement.classList.remove('auth-locked');
     loadApp();
   });
+  updateLoginReadiness();
   if(message)notice(message,error);
 }
 
@@ -91,15 +134,18 @@ function drawPhone(message='',error=false){
       '<button type="button" class="auth-phone-text-button" id="authChangePhone">Change phone number</button>':'')+
     '<div class="auth-switch">Prefer email? <button type="button" data-auth-mode="login">Email and password login</button></div>'+ 
     '<button type="button" class="auth-google-button" id="authGoogle"><span class="auth-google-mark" aria-hidden="true">G</span> Continue with Google</button>'+
+    '<p id="authProviderReadiness" class="auth-footnote" role="status" aria-live="polite">Checking available sign-in methods…</p>'+
     '<p class="auth-footnote">SMS delivery requires an enabled provider and may incur charges. Phone login may create a separate account from an existing email account; sign in with email to keep your previous posts.</p></div>';
   root.querySelector('#authPhoneForm').addEventListener('submit',submitPhone);
   root.querySelector('#authGoogle')?.addEventListener('click',signInWithGoogle);
   root.querySelector('[data-auth-mode="login"]').addEventListener('click',()=>{mode='login';draw()});
   root.querySelector('#authChangePhone')?.addEventListener('click',()=>{mode='phone';pendingPhone='';draw()});
   root.querySelector('#authResendPhone')?.addEventListener('click',()=>sendPhoneCode(pendingPhone,true));
+  updateLoginReadiness();
   if(message)notice(message,error);
 }
 async function sendPhoneCode(phone,resend=false){
+  if(authServices&&!authServices.phone){notice('Phone SMS login is not enabled in Supabase yet. Please use email sign-in.',true);return;}
   if(!client){notice('Authentication is loading. Please try again.',true);return;}
   if(Date.now()-phoneOtpSentAt<60000){
     const seconds=Math.ceil((60000-(Date.now()-phoneOtpSentAt))/1000);
@@ -142,6 +188,7 @@ async function submitPhone(event){
 }
 
 async function signInWithGoogle(){
+  if(authServices&&!authServices.google){notice('Google login is not enabled in Supabase yet. Please use email sign-in.',true);return;}
   if(!client){notice('Sign-in is loading. Please try again.',true);return;}
   const button=root.querySelector('#authGoogle');
   if(!button)return;
@@ -171,6 +218,7 @@ async function start(){
   const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm');
   client=createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'linkbook-auth-session'}});
   window.linkbookClient=client;
+  checkAuthProviderSettings();
   client.auth.onAuthStateChange((event,session)=>{
     if(event==='PASSWORD_RECOVERY'){
       recovery=true;mode='recover';document.documentElement.classList.add('auth-locked');root.hidden=false;draw();
