@@ -206,7 +206,7 @@ async function render(root){
  }
  if(page())return; // Preserve video element on regular feed refresh.
  root.innerHTML='<div class="lb-live-page"><h1 class="page-title">🔴 LinkBook Live <span class="lb-live-beta">BETA</span></h1><p id="liveNotice" class="lb-live-notice" role="status" hidden></p><div id="liveBody"><section class="panel empty">Loading live broadcasts…</section></div></div>';
- try{await loadSessions();draw();}catch(e){toast(e.message||'Could not load live broadcasts.');draw();}
+ try{await loadSessions();draw();const requested=new URLSearchParams(location.search).get('live');if(requested&&/^[0-9a-f-]{36}$/i.test(requested)){history.replaceState(null,'',location.pathname);await watch(requested);}}catch(e){toast(e.message||'Could not load live broadcasts.');draw();}
 }
 document.addEventListener('submit',e=>{
  if(e.target.id!=='liveForm')return;
