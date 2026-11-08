@@ -148,13 +148,68 @@ function previewMedia(file){
  const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='✕ Remove attachment';remove.dataset.removeMedia='true';
  holder.append(media,info,remove);holder.hidden=false;label.textContent='Ready to publish';mediaStatus('');
 }
+const LARGE_FILE_THRESHOLD=6*1024*1024;
+let activeMediaUpload=null;
+function userUploadError(err){
+ const raw=errText(err);
+ if(/bucket not found|not found.*bucket/i.test(raw))return new Error('LinkBook media storage is unavailable. Please contact support.');
+ if(/row.level.security|permission|unauthorized|401|403|jwt|session/i.test(raw))
+  return new Error('Your session may have expired or media upload is not permitted. Sign out, sign in again, and retry. '+raw);
+ if(/payload.too.large|too large|413|maximum.allowed|size.limit/i.test(raw))
+  return new Error('This file exceeds the upload limit of 25 MB. Choose a smaller file.');
+ if(/network|fetch|failed to fetch|timeout|connection/i.test(raw))
+  return new Error('The connection was interrupted. Keep this page open and try Publish again. '+raw);
+ return err instanceof Error ? err : new Error(raw);
+}
+async function resumableUpload(file,path){
+ // Supabase recommends the TUS protocol for media larger than 6 MB.
+ let tus;
+ try { tus=await import('https://cdn.jsdelivr.net/npm/tus-js-client@4.3.1/+esm'); }
+ catch(e){throw new Error('The secure upload helper could not load. Check your internet connection and retry.');}
+ const auth=await db.auth.getSession();
+ if(auth.error)throw auth.error;
+ if(!auth.data?.session?.access_token || auth.data.session.user?.id!==user.id)
+  throw new Error('Please sign in again before uploading a video.');
+ const host=new URL(db.supabaseUrl).hostname.replace('.supabase.co','.storage.supabase.co');
+ const endpoint='https://'+host+'/storage/v1/upload/resumable';
+ await new Promise((resolve,reject)=>{
+  const task=new tus.Upload(file,{
+   endpoint,
+   retryDelays:[0,2000,5000,10000],
+   chunkSize:6*1024*1024,
+   uploadDataDuringCreation:true,
+   removeFingerprintOnSuccess:true,
+   headers:{
+    authorization:'Bearer '+auth.data.session.access_token,
+    apikey:window.LINKBOOK_AUTH?.publishableKey||''
+   },
+   metadata:{bucketName:'linkbook-media',objectName:path,contentType:file.type,cacheControl:'3600'},
+   onProgress(done,total){if(total)mediaStatus('Uploading '+Math.min(100,Math.floor(done/total*100))+'% — keep this page open.');},
+   onError(error){activeMediaUpload=null;reject(error);},
+   onSuccess(){activeMediaUpload=null;resolve();}
+  });
+  activeMediaUpload=task;
+  task.findPreviousUploads().then(previous=>{
+   if(previous?.length)task.resumeFromPreviousUpload(previous[0]);
+   task.start();
+  }).catch(error=>{activeMediaUpload=null;reject(error);});
+ });
+}
 async function upload(file){
  if(!file)return null;
  validateMedia(file);
- const ext=file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g,'')||'bin';
+ const ext=file.type==='image/jpeg'?'jpg':file.type==='image/png'?'png':file.type==='image/webp'?'webp':file.type==='image/gif'?'gif':file.type==='video/mp4'?'mp4':'webm';
  const path=user.id+'/'+crypto.randomUUID()+'.'+ext;
- const r=await db.storage.from('linkbook-media').upload(path,file,{contentType:file.type,upsert:false});
- if(r.error)throw r.error;
+ try{
+  if(file.size>LARGE_FILE_THRESHOLD){
+   mediaStatus('Starting resumable upload…');
+   await resumableUpload(file,path);
+  }else{
+   mediaStatus('Uploading '+file.name+'…');
+   const r=await db.storage.from('linkbook-media').upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
+   if(r.error)throw r.error;
+  }
+ }catch(err){throw userUploadError(err);}
  return {url:db.storage.from('linkbook-media').getPublicUrl(path).data.publicUrl,type:file.type.startsWith('video/')?'video':'image',path};
 }
 async function click(e){
