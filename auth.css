@@ -15,3 +15,7 @@ html.auth-locked .layout,html.auth-locked .mobile-nav,html.auth-locked .top .sea
 .signout-button{background:#eaf1ff;color:#235cc5;font-size:13px;font-weight:750;padding:9px 12px;border:0;border-radius:9px;white-space:nowrap}
 body.dark .auth-root{background:#111827}body.dark .auth-card{background:#1d293d;border-color:#34445e}body.dark .auth-intro h1,body.dark .auth-form label{color:#f1f5fa}body.dark .auth-form input{color:#fff;background:#1a2842;border-color:#425674}
 @media(max-width:520px){.auth-card{padding:23px}.auth-root{min-height:calc(100svh - 63px);padding:16px 12px 50px}.auth-intro h1{font-size:23px}}
+
+.auth-demo{display:block;margin:16px auto 0;border:1px solid #c6d7f4;color:#2457be;background:transparent;border-radius:12px;padding:12px 18px;width:100%;font-weight:700}
+.auth-demo:hover{background:#eef5ff}
+body.dark .auth-demo{color:#cadbff;border-color:#4b6697}body.dark .auth-demo:hover{background:#283b59}
