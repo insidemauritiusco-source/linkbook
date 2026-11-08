@@ -37,9 +37,11 @@ function draw(message='',error=false){
     '<div class="auth-switch">'+(signup?'Already registered? <button type="button" data-auth-mode="login">Sign in</button>':forgot?'<button type="button" data-auth-mode="login">Back to sign in</button>':reset?'':'New to LinkBook? <button type="button" data-auth-mode="signup">Create account</button>')+'</div>'+
     (mode==='login'?'<button type="button" class="auth-forgot" data-auth-mode="forgot">Forgot password?</button>':'')+
     (mode==='login'||mode==='signup'?'<div class="auth-phone-option"><span>or</span><button type="button" class="auth-phone-button" data-auth-mode="phone">📱 Continue with phone number</button></div>':'')+
+    (mode==='login'||mode==='signup'?'<button type="button" class="auth-google-button" id="authGoogle"><span class="auth-google-mark" aria-hidden="true">G</span> Continue with Google</button>':'')+
     '<button type="button" class="auth-demo" id="authDemo">Continue with the free demo</button>'+
     '<p class="auth-footnote">Accounts use secure Supabase authentication. Signed-in posts, likes and messages sync through a secure cloud database. Free demo mode remains local to this browser.</p></div>';
   root.querySelector('form').addEventListener('submit',submit);
+  root.querySelector('#authGoogle')?.addEventListener('click',signInWithGoogle);
   root.querySelectorAll('[data-auth-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.authMode;draw()}));
   root.querySelector('#authDemo').addEventListener('click',()=>{
     window.linkbookSignedInUser=null;
@@ -87,9 +89,11 @@ function drawPhone(message='',error=false){
     '</form>'+
     (verify?'<button type="button" class="auth-phone-text-button" id="authResendPhone">Resend SMS code</button>'+
       '<button type="button" class="auth-phone-text-button" id="authChangePhone">Change phone number</button>':'')+
-    '<div class="auth-switch">Prefer email? <button type="button" data-auth-mode="login">Email and password login</button></div>'+
+    '<div class="auth-switch">Prefer email? <button type="button" data-auth-mode="login">Email and password login</button></div>'+ 
+    '<button type="button" class="auth-google-button" id="authGoogle"><span class="auth-google-mark" aria-hidden="true">G</span> Continue with Google</button>'+
     '<p class="auth-footnote">SMS delivery requires an enabled provider and may incur charges. Phone login may create a separate account from an existing email account; sign in with email to keep your previous posts.</p></div>';
   root.querySelector('#authPhoneForm').addEventListener('submit',submitPhone);
+  root.querySelector('#authGoogle')?.addEventListener('click',signInWithGoogle);
   root.querySelector('[data-auth-mode="login"]').addEventListener('click',()=>{mode='login';draw()});
   root.querySelector('#authChangePhone')?.addEventListener('click',()=>{mode='phone';pendingPhone='';draw()});
   root.querySelector('#authResendPhone')?.addEventListener('click',()=>sendPhoneCode(pendingPhone,true));
@@ -137,6 +141,27 @@ async function submitPhone(event){
   finally{if(button.isConnected){button.disabled=false;button.textContent=oldLabel;}}
 }
 
+async function signInWithGoogle(){
+  if(!client){notice('Sign-in is loading. Please try again.',true);return;}
+  const button=root.querySelector('#authGoogle');
+  if(!button)return;
+  button.disabled=true;
+  const original=button.innerHTML;
+  button.textContent='Connecting to Google…';
+  try{
+    // Hosted GitHub Pages app: the provider returns to this exact project path.
+    const redirectTo=location.origin+location.pathname;
+    const {error}=await client.auth.signInWithOAuth({
+      provider:'google',
+      options:{redirectTo}
+    });
+    if(error)throw error;
+    // A successful browser OAuth attempt navigates to Google.
+  }catch(err){
+    notice('Google sign-in could not start. The Google provider must be enabled in LinkBook Supabase. '+(err.message||''),true);
+    if(button.isConnected){button.disabled=false;button.innerHTML=original;}
+  }
+}
 function notice(text,error=false){
   const el=root.querySelector('#authStatus');
   if(!el)return;
