@@ -22,3 +22,16 @@ body.dark .cloud-chat{background:#16263d}
 body.dark .cloud-bubble{background:#334765;color:#fff}
 body.dark .cloud-bubble.mine{background:#235de0}
 @media(max-width:720px){.cloud-toast{bottom:83px;right:12px}.cloud-upload input{max-width:100%}}
+
+/* LinkBook Safety & privacy controls */
+.lb-safety-status{padding:13px 16px;margin:12px 0;background:#e9f3ff;color:#174b8a;border:1px solid #c4dcff;border-radius:12px;overflow-wrap:anywhere}
+.lb-safety-status[hidden]{display:none}
+.safety-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:14px 0}
+.safety-actions select{flex:1;min-width:170px;max-width:100%}
+.safety-danger{background:#a61b2b;color:white;border:0;padding:11px 17px;border-radius:10px;font-weight:700}
+.safety-report{border:1px solid #d8e4f2;border-radius:12px;padding:15px;margin:12px 0}
+.safety-report small{display:block;color:#72819a;margin:6px 0}
+.safety-report textarea{display:block;width:100%;min-height:65px;margin:12px 0}
+body.dark .safety-report{border-color:#3c526a}
+body.dark .lb-safety-status{background:#1c3551;color:#c3e4ff;border-color:#486886}
+@media(max-width:720px){.safety-actions button{flex:1 1 auto}.safety-actions select{width:100%}}
