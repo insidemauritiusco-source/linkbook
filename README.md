@@ -54,3 +54,13 @@ Uploaded post media is public-readable. Supported files: JPEG, PNG, WebP, GIF, M
 **Important:** This is a first cloud release and has not been end-to-end tested with multiple human accounts. Guest/demo activity will NOT migrate automatically to cloud posts. Reports are stored but there is not yet an admin moderation interface, blocking feature, anti-spam rate limiting, or private post audience controls. Before public launch, test two independent signup/email-confirmation flows, chat and media uploads, configure production SMTP, enable leaked password protection, and implement moderation, privacy policy and deletion controls.
 
 Do not put service-role or secret API keys into public JavaScript. The supplied `auth-config.js` contains only a Supabase publishable key.
+
+
+## LinkBook Live (small-audience beta)
+
+- Signed-in members can open **Live** from the LinkBook sidebar or mobile navigation, add a title, allow camera/mic access, and start a broadcast.
+- Signed-in viewers can select **Watch Live**; hosts can mute microphone, share a link or end their live session.
+- Video travels peer-to-peer by WebRTC. Supabase Postgres manages sessions, viewer signaling, and RLS.
+- The live page shares a link of the form `?live=<session UUID>`. Sessions expire from the listing after roughly 60 seconds without heartbeat.
+- **Beta only**: max 4 viewer connections per broadcast; STUN-only, so some home/mobile networks will not connect without TURN. Video is not recorded and does not scale to a large audience. Browser tabs must remain open.
+- Not yet verified end-to-end using two browsers/accounts. A production live video feature needs a managed SFU/streaming service, moderation, connection safeguards and TURN.
