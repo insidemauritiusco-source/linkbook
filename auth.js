@@ -34,9 +34,16 @@ function draw(message='',error=false){
     '<button class="auth-submit" id="authSubmit" type="submit">'+(signup?'Create account':forgot?'Email reset link':reset?'Update password':'Sign in')+'</button></form>'+
     '<div class="auth-switch">'+(signup?'Already registered? <button type="button" data-auth-mode="login">Sign in</button>':forgot?'<button type="button" data-auth-mode="login">Back to sign in</button>':reset?'':'New to LinkBook? <button type="button" data-auth-mode="signup">Create account</button>')+'</div>'+
     (mode==='login'?'<button type="button" class="auth-forgot" data-auth-mode="forgot">Forgot password?</button>':'')+
-    '<p class="auth-footnote">Login is managed by Supabase. Posts, likes and demo messages are still saved in this browser only.</p></div>';
+    '<button type="button" class="auth-demo" id="authDemo">Continue with the free demo</button>'+
+    '<p class="auth-footnote">Accounts use secure Supabase authentication. Demo posts, likes, and messages stay on this browser only; they are not shared between members.</p></div>';
   root.querySelector('form').addEventListener('submit',submit);
   root.querySelectorAll('[data-auth-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.authMode;draw()}));
+  root.querySelector('#authDemo').addEventListener('click',()=>{
+    window.linkbookSignedInUser=null;
+    root.hidden=true;
+    document.documentElement.classList.remove('auth-locked');
+    loadApp();
+  });
   if(message)notice(message,error);
 }
 function notice(text,error=false){
@@ -62,6 +69,7 @@ async function start(){
 }
 function enter(user){
   if(!user||recovery)return;
+  if(loaded && window.linkbookSignedInUser?.id !== user.id){location.reload();return;}
   window.linkbookSignedInUser=user;
   root.hidden=true;document.documentElement.classList.remove('auth-locked');
   loadApp();
