@@ -1,8 +1,9 @@
 /* LinkBook frontend demo — data stays in this browser; not multi-user auth. */
-const key='linkbook-demo-v1';
+const key=window.linkbookSignedInUser ? 'linkbook-demo-user-'+window.linkbookSignedInUser.id : 'linkbook-demo-v1';
 const seed={profile:{name:'Your Profile',bio:'Hello! Welcome to my LinkBook.',location:'Mauritius'},posts:[{id:'welcome',author:'LinkBook Team',initial:'L',text:'Welcome to LinkBook! 🎉 Your space to share what matters, connect with people and discover new stories. Create your first post below.',time:Date.now()-3600000,likes:2,liked:false,comments:[{who:'Community',text:'Happy to be here!'}],saved:false}],friends:[],messages:[]};
 function load(){try{const d=JSON.parse(localStorage.getItem(key));return d&&d.profile&&Array.isArray(d.posts)?d:structuredClone(seed)}catch{return structuredClone(seed)}}
 let state=load(),page='feed',filter='latest',query='',composeOpen=false;
+if(window.linkbookSignedInUser && state.profile.name==='Your Profile') state.profile.name=window.linkbookSignedInUser.user_metadata?.display_name || window.linkbookSignedInUser.email?.split('@')[0] || 'Member';
 const $=s=>document.querySelector(s),content=$('#content');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const save=()=>localStorage.setItem(key,JSON.stringify(state));
