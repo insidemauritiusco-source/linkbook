@@ -19,3 +19,18 @@ body.dark .auth-root{background:#111827}body.dark .auth-card{background:#1d293d;
 .auth-demo{display:block;margin:16px auto 0;border:1px solid #c6d7f4;color:#2457be;background:transparent;border-radius:12px;padding:12px 18px;width:100%;font-weight:700}
 .auth-demo:hover{background:#eef5ff}
 body.dark .auth-demo{color:#cadbff;border-color:#4b6697}body.dark .auth-demo:hover{background:#283b59}
+
+
+/* Phone login and SMS verification */
+.auth-phone-option{display:grid;gap:9px;margin:16px 0 0;text-align:center}
+.auth-phone-option>span{font-size:12px;font-weight:650;color:#8190a5}
+.auth-phone-button{width:100%;padding:13px;border-radius:12px;border:1px solid #bdd0f3;background:#f4f8ff;color:#215ac1;font-weight:750}
+.auth-phone-button:hover{background:#e7f1ff}
+.auth-phone-hint,.auth-phone-target{font-size:12px;color:#667b99;line-height:1.55;margin:0}
+.auth-phone-target{padding:10px 12px;background:#edf5ff;border-radius:10px}
+.auth-phone-text-button{display:block;margin:9px auto 0;background:none;border:0;color:#2563eb;font-size:13px;font-weight:700;padding:7px}
+.auth-phone-text-button:disabled{opacity:.55;cursor:wait}
+.auth-form input[type="tel"],.auth-form input[inputmode="numeric"]{font-variant-numeric:tabular-nums}
+body.dark .auth-phone-button{background:#233e67;color:#d8e8ff;border-color:#426295}
+body.dark .auth-phone-target{background:#263952;color:#e2ecff}
+body.dark .auth-phone-hint{color:#a7bad4}
