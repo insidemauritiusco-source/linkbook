@@ -119,3 +119,12 @@ Checked LinkBook Supabase project `dcmxqlrodbckqbeaxnqd`: the `linkbook-media` b
 
 Static JavaScript parsing and a retry helper smoke check passed during the change. Full Android browser uploads with a signed-in account, multi-account posting, and video resume under poor network conditions **remain to be tested after review**. Do not treat this PR as a verified live fix until those tests succeed.
 
+
+## 9 November 2026 — direct Storage upload diagnosis (review only)
+
+- Observed Android upload attempts reached Supabase Storage OPTIONS (HTTP 200), while public-object probes returned HEAD 400. This alone does **not** confirm a CORS defect, and no successful POST upload was observed in the inspected sample.
+- Small files (up to 6 MiB) now first try the documented dedicated `<project>.storage.supabase.co` upload host with authenticated raw POST. Only network/transport failures trigger a fallback through the existing SDK gateway path. Larger files still use the existing TUS resumable path.
+- Upload errors display a sanitized `LB-UPLOAD-*` code and route, without access tokens or object identifiers. Console diagnostics contain only coarse categories, HTTP status, and route.
+- Retains the upload's existing object path, verification, and draft-preserving retry behavior. The missing-file existence probe now uses GET instead of the HEAD request that returned 400 in the observed logs.
+- This is a **proposed change**; don't claim verified Android CORS resolution without real authenticated network testing. In particular, a browser's `Failed to fetch` can be caused by connectivity, DNS, CORS, browser extensions, TLS, or blocked requests.
+- Run `node --test tests/media-storage.test.cjs tests/media-retry.test.cjs` to validate the transport helpers. Do not add service-role keys to this repository.
