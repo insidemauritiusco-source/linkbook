@@ -247,7 +247,7 @@ async function click(e){
  const pg=e.target.closest('[data-page]');if(pg){switchPage(pg.dataset.page);return}
  const fs=e.target.closest('[data-filter]');if(fs){filter=fs.dataset.filter;render();return}
  if(e.target.closest('#openComposer')){pendingMedia=null;pendingPostId=null;selectedMediaFile=null;composer=true;render();return}
- if(e.target.closest('[data-remove-media]')){const input=root.querySelector('#cloudPost input[name=media]');if(input)input.value='';selectedMediaFile=null;previewMedia(null);return;}
+ if(e.target.closest('[data-remove-media]')){const input=root.querySelector('#cloudPost input[name=media]');if(input)input.value='';pendingMedia=null;pendingPostId=null;selectedMediaFile=null;previewMedia(null);return;}
  const p=e.target.closest('[data-peer]');if(p){peer=p.dataset.peer;render();return}
  const f=e.target.closest('[data-friend]');if(f)return call(async()=>{
  const other=f.dataset.person,action=f.dataset.friend,link=relation(other);
