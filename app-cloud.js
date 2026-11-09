@@ -14,7 +14,8 @@ let me=null,people=[],posts=[],likes=[],comments=[],saved=[],friends=[],messages
 let page='feed',filter='latest',query='',peer=null,busy=false,composer=false,file=null,channel=null;
 let selectedMediaFile=null,pendingMedia=null,pendingPostId=null;
 const retryTools=window.LinkBookMediaRetry;
-if(!retryTools)throw Error('Media upload helper missing. Reload LinkBook.');
+const storageTools=window.LinkBookStorageTransport;
+if(!retryTools||!storageTools)throw Error('Media upload helper missing. Reload LinkBook.');
 function notify(text,error=false){let el=$('#cloudStatus');if(!el){el=document.createElement('div');el.id='cloudStatus';el.className='cloud-toast';document.body.appendChild(el)}el.textContent=text;el.classList.toggle('error',error);el.hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>{el.hidden=true},4500)}
 async function call(fn){try{await fn()}catch(e){console.error(e);notify(errText(e),true)}}
 async function check(promise){const r=await promise;if(r.error)throw r.error;return r.data}
@@ -207,23 +208,41 @@ async function upload(file){
  const result={url:bucket.getPublicUrl(path).data.publicUrl,type:file.type.startsWith('video/')?'video':'image',path};
  if(item.complete)return result;
  async function exists(){
-  try{const response=await fetch(result.url,{method:'HEAD',cache:'no-store'});return response.ok;}
+  try{const response=await fetch(result.url,{method:'GET',cache:'no-store'});return response.ok;}
   catch{return false;}
  }
  try{
   if(file.size>LARGE_FILE_THRESHOLD){
    mediaStatus('Starting resumable upload…');await resumableUpload(file,path);
   }else{
+   let route='direct-storage';
    await retryTools.run(async attempt=>{
-    mediaStatus(attempt===1?'Uploading '+file.name+'…':'Retrying upload ('+attempt+'/3)…');
-    const response=await bucket.upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
-    if(response.error)throw response.error;
-   },{attempts:3,verify:exists,onRetry:n=>mediaStatus('Connection interrupted; retrying ('+(n+1)+'/3)…')});
+    mediaStatus(attempt===1?'Uploading '+file.name+' through Storage…':'Retrying upload ('+attempt+'/3)…');
+    const auth=await db.auth.getSession();
+    if(auth.error)throw auth.error;
+    if(!auth.data?.session?.access_token||auth.data.session.user?.id!==user.id)
+     throw Error('Please sign in again before uploading.');
+    try {
+     await storageTools.directUpload({projectUrl:db.supabaseUrl,
+      apiKey:window.LINKBOOK_AUTH?.publishableKey,session:auth.data.session,file,path});
+     route='direct-storage';
+    }catch(error){
+     if(storageTools.issue(error,'direct-storage').kind!=='network')throw error;
+     if(await exists()){route='direct-storage-recovered';return;}
+     route='api-gateway';
+     const response=await bucket.upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
+     if(response.error){response.error.route=route;throw response.error;}
+    }
+   },{attempts:3,verify:exists,onRetry:n=>mediaStatus('Network interruption; retrying ('+(n+1)+'/3)…')});
+   mediaStatus('Transfer finished ('+route+'). Saving post…');
   }
   item.complete=true;
  }catch(err){
   if((retryTools.retryable(err)||Number(err?.status||err?.statusCode)===409)&&await exists())item.complete=true;
-  else throw userUploadError(err);
+  else {
+   console.warn('LinkBook storage upload:',storageTools.issue(err,err?.route||'storage'));
+   throw userUploadError(new Error(storageTools.diagnostic(err,err?.route||'storage')));
+  }
  }
  return result;
 }
