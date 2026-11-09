@@ -12,7 +12,9 @@ const profileName=p=>p?.display_name||'Member';
 const errText=e=>String(e?.message||e||'Something went wrong');
 let me=null,people=[],posts=[],likes=[],comments=[],saved=[],friends=[],messages=[],notifications=[];
 let page='feed',filter='latest',query='',peer=null,busy=false,composer=false,file=null,channel=null;
-let selectedMediaFile=null;
+let selectedMediaFile=null,pendingMedia=null,pendingPostId=null;
+const retryTools=window.LinkBookMediaRetry;
+if(!retryTools)throw Error('Media upload helper missing. Reload LinkBook.');
 function notify(text,error=false){let el=$('#cloudStatus');if(!el){el=document.createElement('div');el.id='cloudStatus';el.className='cloud-toast';document.body.appendChild(el)}el.textContent=text;el.classList.toggle('error',error);el.hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>{el.hidden=true},4500)}
 async function call(fn){try{await fn()}catch(e){console.error(e);notify(errText(e),true)}}
 async function check(promise){const r=await promise;if(r.error)throw r.error;return r.data}
@@ -66,7 +68,7 @@ async function refresh(){
  // Rebuilding its DOM drops the selected FileList and any unpublished caption.
  if(!(page==='feed'&&composer&&root.querySelector('#cloudPost')))render();
 }
-function switchPage(p){selectedMediaFile=null;discardMediaPreview();if(page==='live'&&p!=='live')window.LinkBookLive?.leavePage();page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
+function switchPage(p){pendingMedia=null;pendingPostId=null;selectedMediaFile=null;discardMediaPreview();if(page==='live'&&p!=='live')window.LinkBookLive?.leavePage();page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
 function render(){
  if(selectedMediaUrl && (!composer||page!=='feed'))discardMediaPreview();
  document.querySelectorAll('[data-page]').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
@@ -136,6 +138,7 @@ function mediaStatus(message,error=false){
 function previewMedia(file){
  discardMediaPreview();const holder=root.querySelector('#mediaPreview'), label=root.querySelector('#fileLabel');
  if(!holder||!label)return;
+ if(selectedMediaFile!==file){pendingMedia=null;pendingPostId=null;}
  selectedMediaFile=file||null;
  holder.replaceChildren();holder.hidden=true;label.textContent='';
  if(!file){mediaStatus('');return;}
@@ -158,7 +161,7 @@ function userUploadError(err){
  if(/payload.too.large|too large|413|maximum.allowed|size.limit/i.test(raw))
   return new Error('This file exceeds the upload limit of 25 MB. Choose a smaller file.');
  if(/network|fetch|failed to fetch|timeout|connection/i.test(raw))
-  return new Error('The connection was interrupted. Keep this page open and try Publish again. '+raw);
+  return new Error('Connection interrupted after retries. Your selected file and draft are preserved. Check internet and press Publish again. '+raw);
  return err instanceof Error ? err : new Error(raw);
 }
 async function resumableUpload(file,path){
@@ -199,23 +202,51 @@ async function upload(file){
  if(!file)return null;
  validateMedia(file);
  const ext=file.type==='image/jpeg'?'jpg':file.type==='image/png'?'png':file.type==='image/webp'?'webp':file.type==='image/gif'?'gif':file.type==='video/mp4'?'mp4':'webm';
- const path=user.id+'/'+crypto.randomUUID()+'.'+ext;
+ if(!pendingMedia||pendingMedia.file!==file)pendingMedia={file,path:user.id+'/'+crypto.randomUUID()+'.'+ext,complete:false};
+ const item=pendingMedia,path=item.path,bucket=db.storage.from('linkbook-media');
+ const result={url:bucket.getPublicUrl(path).data.publicUrl,type:file.type.startsWith('video/')?'video':'image',path};
+ if(item.complete)return result;
+ async function exists(){
+  try{const response=await fetch(result.url,{method:'HEAD',cache:'no-store'});return response.ok;}
+  catch{return false;}
+ }
  try{
   if(file.size>LARGE_FILE_THRESHOLD){
-   mediaStatus('Starting resumable upload…');
-   await resumableUpload(file,path);
+   mediaStatus('Starting resumable upload…');await resumableUpload(file,path);
   }else{
-   mediaStatus('Uploading '+file.name+'…');
-   const r=await db.storage.from('linkbook-media').upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
-   if(r.error)throw r.error;
+   await retryTools.run(async attempt=>{
+    mediaStatus(attempt===1?'Uploading '+file.name+'…':'Retrying upload ('+attempt+'/3)…');
+    const response=await bucket.upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
+    if(response.error)throw response.error;
+   },{attempts:3,verify:exists,onRetry:n=>mediaStatus('Connection interrupted; retrying ('+(n+1)+'/3)…')});
   }
- }catch(err){throw userUploadError(err);}
- return {url:db.storage.from('linkbook-media').getPublicUrl(path).data.publicUrl,type:file.type.startsWith('video/')?'video':'image',path};
+  item.complete=true;
+ }catch(err){
+  if((retryTools.retryable(err)||Number(err?.status||err?.statusCode)===409)&&await exists())item.complete=true;
+  else throw userUploadError(err);
+ }
+ return result;
 }
+async function savePost(body,uploaded){
+ if(!pendingPostId)pendingPostId=crypto.randomUUID();
+ const id=pendingPostId,payload={id,author_id:user.id,body,media_url:uploaded?.url||null,media_type:uploaded?.type||null};
+ async function alreadySaved(){
+  try{const result=await db.from('posts').select('id').eq('id',id).eq('author_id',user.id).maybeSingle();return !result.error&&!!result.data;}
+  catch{return false;}
+ }
+ try{
+  await retryTools.run(async attempt=>{
+   if(attempt>1&&await alreadySaved())return;
+   mediaStatus(attempt>1?'Checking post and retrying save…':'Saving your post…');
+   await check(db.from('posts').insert(payload));
+  },{attempts:3,verify:alreadySaved});
+ }catch(err){if(await alreadySaved())return;throw userUploadError(err);}
+}
+
 async function click(e){
  const pg=e.target.closest('[data-page]');if(pg){switchPage(pg.dataset.page);return}
  const fs=e.target.closest('[data-filter]');if(fs){filter=fs.dataset.filter;render();return}
- if(e.target.closest('#openComposer')){selectedMediaFile=null;composer=true;render();return}
+ if(e.target.closest('#openComposer')){pendingMedia=null;pendingPostId=null;selectedMediaFile=null;composer=true;render();return}
  if(e.target.closest('[data-remove-media]')){const input=root.querySelector('#cloudPost input[name=media]');if(input)input.value='';selectedMediaFile=null;previewMedia(null);return;}
  const p=e.target.closest('[data-peer]');if(p){peer=p.dataset.peer;render();return}
  const f=e.target.closest('[data-friend]');if(f)return call(async()=>{
@@ -267,9 +298,9 @@ async function submit(e){
   if(!text&&!f)throw Error('Write a post or choose a photo/video.');
   validateMedia(f);mediaStatus(f?'Uploading your photo/video…':'Publishing your post…');
   let uploaded;
-  try{uploaded=await upload(f);mediaStatus('Saving your post…');await check(db.from('posts').insert({author_id:user.id,body:text,media_url:uploaded?.url||null,media_type:uploaded?.type||null}));}
-  catch(err){if(uploaded?.path)await db.storage.from('linkbook-media').remove([uploaded.path]);throw err}
-  composer=false;selectedMediaFile=null;discardMediaPreview();notify('Your post is online!');
+  uploaded=await upload(f);
+  await savePost(text,uploaded);
+  composer=false;pendingMedia=null;pendingPostId=null;selectedMediaFile=null;discardMediaPreview();notify('Your post is online!');
  }else if(id==='cloudProfile'){
   const d=new FormData(form),patch={display_name:String(d.get('display_name')||'').trim(),bio:String(d.get('bio')||'').trim(),location:String(d.get('location')||'').trim(),updated_at:new Date().toISOString()};
   if(!patch.display_name)throw Error('Display name required.');
