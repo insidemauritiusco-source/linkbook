@@ -73,10 +73,27 @@ function render(container){
  '<form id="lbStatusPost"><label for="lbStatusText">What’s happening?</label><textarea id="lbStatusText" name="body" maxlength="500" placeholder="Write a short status…"></textarea>'+
  '<label class="lb-status-select">📷 Choose photo or video<input type="file" name="media" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"></label>'+
  '<small>JPEG, PNG, WebP, GIF, MP4 or WebM · Maximum 25 MB</small><div id="lb-status-preview"></div>'+
- '<p id="lb-status-feedback" role="status" aria-live="polite" hidden></p><button class="primary" type="submit">Post status</button></form></section>'+
+ '<p id="lb-status-feedback" role="status" aria-live="polite" hidden></p><button class="primary" type="submit">Post status</button><button class="lb-status-text-only" type="button" id="lbStatusTextOnly" hidden>Post text only (without photo)</button></form></section>'+
  '<section class="panel"><h2>Recent statuses</h2><div id="lb-status-feed" class="lb-status-list"><p>Loading statuses…</p></div></section>';
  const form=container.querySelector('#lbStatusPost');
- form.elements.media.addEventListener('change',()=>preview(form));
+ const textOnlyButton=form.querySelector('#lbStatusTextOnly');
+ const updateTextOnly=()=>{textOnlyButton.hidden=!(form.elements.body.value.trim()&&form.elements.media.files?.length);};
+ form.elements.body.addEventListener('input',updateTextOnly);
+ form.elements.media.addEventListener('change',()=>{preview(form);updateTextOnly();});
+ textOnlyButton.addEventListener('click',async()=>{
+  if(working)return;
+  const body=form.elements.body.value.trim();
+  if(!body){feedback('Write a message before posting text only.',true);return;}
+  working=true;textOnlyButton.disabled=true;
+  try{
+   const result=await db.from('member_statuses').insert({author_id:user.id,body,media_url:null,media_type:null});
+   if(result.error)throw result.error;
+   clearPreview();
+   if(container.dataset.lbView==='status')render(container);
+   if(notice)notice('Text status posted! Photo was not uploaded.');
+  }catch(error){feedback('Could not post text: '+(error.message||'Please retry.'),true);}
+  finally{working=false;if(textOnlyButton.isConnected)textOnlyButton.disabled=false;}
+ });
  form.addEventListener('submit',async event=>{
   event.preventDefault();event.stopPropagation();
   if(working)return;
@@ -92,7 +109,14 @@ function render(container){
    clearPreview();
    if(container.dataset.lbView==='status')render(container);
    if(notice)notice('Status posted for 24 hours!');
-  }catch(error){feedback('Could not publish status: '+(error.message||'Please try again.'),true);}
+  }catch(error){
+   const detail=String(error.message||'Please try again.');
+   const network=/LB-UPLOAD-NET|failed to fetch|network|connection interrupted/i.test(detail);
+   feedback(network
+    ?'Photo upload could not reach storage. Your selected photo and text are still here. Try Wi-Fi instead of mobile data (or vice versa), then tap Post status again. If you wrote text, you can choose Post text only. Details: '+detail
+    :'Could not publish status: '+detail,true);
+   updateTextOnly();
+  }
   finally{working=false;if(button.isConnected)button.disabled=false;}
  });
  container.onclick=async function onDelete(event){
