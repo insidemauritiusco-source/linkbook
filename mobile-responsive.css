@@ -89,3 +89,12 @@
 @media (prefers-reduced-motion: reduce) {
  .mobile-nav, .filters { scroll-behavior: auto; }
 }
+
+/* Visible, accessible public-beta notice across screen sizes. */
+.lb-beta-banner{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;padding:10px 16px;background:#fff7e6;border-bottom:1px solid #f1d59c;color:#754814;font-size:12px;line-height:1.45}
+.lb-beta-banner strong{font-size:13px}
+.lb-beta-banner a{color:#754814;font-weight:700;text-decoration:underline}
+html.auth-locked .lb-beta-banner{display:none!important}
+body.dark .lb-beta-banner{background:#45311f;border-color:#79522d;color:#ffe3aa}
+body.dark .lb-beta-banner a{color:#ffe3aa}
+@media(max-width:720px){.lb-beta-banner{padding:9px 12px;justify-content:flex-start;gap:5px 10px}}
