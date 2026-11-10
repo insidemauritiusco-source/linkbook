@@ -1,0 +1,21 @@
+/* Expandable post text, on both desktop and Android. */
+.post .post-body.lb-post-text-collapsed {
+ display: -webkit-box;
+ -webkit-box-orient: vertical;
+ -webkit-line-clamp: 5;
+ line-clamp: 5;
+ overflow: hidden;
+ white-space: pre-wrap;
+ overflow-wrap: anywhere;
+}
+.lb-text-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -7px 0 12px; }
+.lb-text-actions button { min-height: 44px; padding: 9px 13px; border-radius: 10px; border: 1px solid #c6d7ef; background: #edf4ff; color: #194b9a; font-weight: 700; }
+body.dark .lb-text-actions button { background: #293d60; color: #d8e7ff; border-color: #45638e; }
+.lb-text-dialog-open { overflow: hidden; }
+.lb-text-dialog { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; background: rgba(3, 9, 22, .92); padding: 16px; }
+.lb-text-dialog-card { position: relative; width: min(760px, 100%); max-height: min(88dvh, 900px); overflow: auto; background: #fff; color: #172339; border-radius: 18px; padding: 24px; box-shadow: 0 14px 55px #0007; }
+.lb-text-dialog-card h2 { font-size: 20px; margin: 0 0 18px; padding-right: 90px; }
+.lb-text-dialog-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: clamp(17px, 2vw, 20px); line-height: 1.75; }
+.lb-text-close { position: absolute; top: 14px; right: 14px; min-height: 44px; border: 1px solid #c7d3e5; border-radius: 10px; background: #edf4ff; color: #172339; font-weight: 750; padding: 8px 12px; }
+body.dark .lb-text-dialog-card { background: #1d293d; color: #f1f5ff; }
+@media(max-width:720px) { .lb-text-dialog { padding: 8px; } .lb-text-dialog-card { padding: 18px; max-height: 92dvh; } .lb-text-actions { margin-top: 0; } }
