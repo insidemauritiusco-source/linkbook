@@ -52,6 +52,7 @@ async function boot(){
  if(!rows){await check(db.from('profiles').insert({id:user.id,display_name:(user.user_metadata?.display_name||user.email?.split('@')[0]||'Member').slice(0,70)}));}
  await refresh();
  await prepareIncomingShare();
+ window.LinkBookCalls?.init(db,user);
  $('#search').addEventListener('input',e=>{query=e.target.value.toLowerCase().trim();render()});
  $('#theme').addEventListener('click',()=>{document.body.classList.toggle('dark');localStorage.setItem('linkbook-theme',document.body.classList.contains('dark')?'dark':'light')});
  if(localStorage.getItem('linkbook-theme')==='dark')document.body.classList.add('dark');
@@ -138,7 +139,7 @@ function messagesPage(){
  if(!peer&&contacts.length)peer=contacts[0].id;
  if(!contacts.some(p=>p.id===peer))peer=contacts[0]?.id||null;
  const chat=messages.filter(m=>[m.sender_id,m.recipient_id].includes(user.id)&&[m.sender_id,m.recipient_id].includes(peer)&&m.sender_id!==m.recipient_id);
- return '<h1 class="page-title">Messages</h1><section class="panel"><p>Private conversations with your accepted friends.</p><div class="cloud-contact">'+contacts.map(p=>'<button class="'+(peer===p.id?'selected':'')+'" data-peer="'+p.id+'">'+esc(profileName(p))+'</button>').join('')+'</div>'+(peer?'<h3>Chat with '+esc(profileName(person(peer)))+'</h3><div class="cloud-chat">'+(chat.length?chat.map(m=>'<div class="cloud-bubble '+(m.sender_id===user.id?'mine':'')+'">'+esc(m.body)+'<small>'+time(m.created_at)+'</small></div>').join(''):'<p class="muted">Start the conversation.</p>')+'</div><form id="cloudMessage" class="comment-entry"><input name="body" required maxlength="2000" placeholder="Write a private message..." autocomplete="off"><button class="primary">Send</button></form>':'<p class="empty">Add a friend first to start messaging.</p>')+'</section>';
+ return '<h1 class="page-title">Messages</h1><section class="panel"><p>Private conversations with your accepted friends.</p><div class="cloud-contact">'+contacts.map(p=>'<button class="'+(peer===p.id?'selected':'')+'" data-peer="'+p.id+'">'+esc(profileName(p))+'</button>').join('')+'</div>'+(peer?'<h3>Chat with '+esc(profileName(person(peer)))+'</h3><div class="lb-call-launch"><button type="button" data-private-call="'+esc(peer)+'" data-mode="audio">📞 Voice call</button><button type="button" data-private-call="'+esc(peer)+'" data-mode="video">📹 Video call</button><p>Private calls beta — both friends must have LinkBook open. Allow microphone/camera when prompted.</p></div><div class="cloud-chat">'+(chat.length?chat.map(m=>'<div class="cloud-bubble '+(m.sender_id===user.id?'mine':'')+'">'+esc(m.body)+'<small>'+time(m.created_at)+'</small></div>').join(''):'<p class="muted">Start the conversation.</p>')+'</div><form id="cloudMessage" class="comment-entry"><input name="body" required maxlength="2000" placeholder="Write a private message..." autocomplete="off"><button class="primary">Send</button></form>':'<p class="empty">Add a friend first to start messaging.</p>')+'</section>';
 }
 function profilePage(){
  const p=me, mine=posts.filter(x=>x.author_id===user.id);
