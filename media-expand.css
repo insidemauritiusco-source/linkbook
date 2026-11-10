@@ -1,0 +1,11 @@
+/* Feed media enlargement: image click/lightbox and video fullscreen button. */
+.post img.post-image.lb-photo-expandable { cursor: zoom-in; }
+.post img.post-image.lb-photo-expandable:focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }
+.lb-video-expand { display: inline-flex; align-items: center; justify-content: center; border: 1px solid #bcd1f0; border-radius: 10px; background: #edf4ff; color: #194b9a; padding: 9px 13px; min-height: 44px; font-weight: 700; margin: 0 0 8px; }
+body.dark .lb-video-expand { background: #293d60; color: #d8e7ff; border-color: #45638e; }
+.lb-media-expanded { overflow: hidden; }
+.lb-media-lightbox { position: fixed; inset: 0; z-index: 9999; padding: 70px 16px 20px; background: rgba(3,9,22,.96); display: flex; align-items: center; justify-content: center; }
+.lb-media-full { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+.lb-media-lightbox video.lb-media-full { width: min(100%, 1100px); max-height: calc(100dvh - 95px); background: #000; }
+.lb-media-close { position: absolute; top: max(12px, env(safe-area-inset-top, 0px)); right: 16px; background: #fff; color: #111827; border: 0; border-radius: 12px; min-height: 44px; padding: 8px 14px; font-size: 16px; font-weight: 750; cursor: pointer; }
+@media (max-width: 720px) { .lb-media-lightbox { padding: 66px 7px 10px; } .lb-media-close { right: 10px; } }
