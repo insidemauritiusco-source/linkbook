@@ -19,6 +19,30 @@ if(!retryTools||!storageTools)throw Error('Media upload helper missing. Reload L
 function notify(text,error=false){let el=$('#cloudStatus');if(!el){el=document.createElement('div');el.id='cloudStatus';el.className='cloud-toast';document.body.appendChild(el)}el.textContent=text;el.classList.toggle('error',error);el.hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>{el.hidden=true},4500)}
 async function call(fn){try{await fn()}catch(e){console.error(e);notify(errText(e),true)}}
 async function check(promise){const r=await promise;if(r.error)throw r.error;return r.data}
+let incomingShareApplied=false;
+async function prepareIncomingShare(){
+ if(incomingShareApplied||!window.LinkBookIncomingShare)return;
+ const helper=window.LinkBookIncomingShare;
+ let incoming;
+ try { incoming=await helper.read(); }
+ catch (_) { notify('Could not load the shared item. Please choose it from your Gallery in LinkBook.',true); return; }
+ if(!incoming)return;
+ if(incoming.created && Date.now()-incoming.created>24*60*60*1000){
+  await helper.clear();notify('Shared item expired. Please share it again.',true);return;
+ }
+ incomingShareApplied=true;
+ page='feed';composer=true;render();
+ const form=root.querySelector('#cloudPost');
+ if(!form)return;
+ const message=[incoming.title,incoming.text,incoming.url].filter(Boolean).join(' ').slice(0,4000);
+ form.elements.body.value=message;
+ if(incoming.file){
+  const f=incoming.file;
+  try{validateMedia(f);}catch(err){mediaStatus(err.message,true);return;}
+  previewMedia(f);
+ }
+ notify('Shared item is ready. Review it and press Publish.');
+}
 function person(id){return people.find(p=>p.id===id)||{id,display_name:id===user.id?profileName(me):'Member'};}
 function avatar(p){const name=profileName(p);return p?.avatar_url?'<img class="avatar cloud-avatar" src="'+esc(p.avatar_url)+'" alt="">':'<span class="avatar">'+icon(name)+'</span>'}
 function relation(id){return friends.find(f=>(f.requester_id===user.id&&f.addressee_id===id)||(f.addressee_id===user.id&&f.requester_id===id));}
@@ -27,6 +51,7 @@ async function boot(){
  const rows=await check(db.from('profiles').select('id,display_name,bio,location,avatar_url').eq('id',user.id).maybeSingle());
  if(!rows){await check(db.from('profiles').insert({id:user.id,display_name:(user.user_metadata?.display_name||user.email?.split('@')[0]||'Member').slice(0,70)}));}
  await refresh();
+ await prepareIncomingShare();
  $('#search').addEventListener('input',e=>{query=e.target.value.toLowerCase().trim();render()});
  $('#theme').addEventListener('click',()=>{document.body.classList.toggle('dark');localStorage.setItem('linkbook-theme',document.body.classList.contains('dark')?'dark':'light')});
  if(localStorage.getItem('linkbook-theme')==='dark')document.body.classList.add('dark');
@@ -319,6 +344,7 @@ async function submit(e){
   let uploaded;
   uploaded=await upload(f);
   await savePost(text,uploaded);
+  if(incomingShareApplied){window.LinkBookIncomingShare?.clear().catch(()=>{});incomingShareApplied=false;}
   composer=false;pendingMedia=null;pendingPostId=null;selectedMediaFile=null;discardMediaPreview();notify('Your post is online!');
  }else if(id==='cloudProfile'){
   const d=new FormData(form),patch={display_name:String(d.get('display_name')||'').trim(),bio:String(d.get('bio')||'').trim(),location:String(d.get('location')||'').trim(),updated_at:new Date().toISOString()};
