@@ -94,7 +94,7 @@ async function refresh(){
  const tip=$('.rightbar .panel:nth-child(2) p');if(tip)tip.textContent='Your posts, messages, friend requests and notifications now sync between signed-in members.';
  // Never rebuild the open composer while Android's file picker is returning focus.
  // Rebuilding its DOM drops the selected FileList and any unpublished caption.
- if(!(page==='feed'&&composer&&root.querySelector('#cloudPost')))render();
+ if(!(page==='feed'&&composer&&root.querySelector('#cloudPost')) && !(page==='status'&&root.querySelector('#lbStatusPost')))render();
 }
 function switchPage(p){pendingMedia=null;pendingPostId=null;selectedMediaFile=null;discardMediaPreview();if(page==='live'&&p!=='live')window.LinkBookLive?.leavePage();page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
 function render(){
