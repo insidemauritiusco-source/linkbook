@@ -51,3 +51,22 @@
 4. A blocks B; ensure B cannot message, friend or view protected posts according to current policy.
 5. A exports data and deletes disposable account; confirm stored objects and authored data are cleaned as expected.
 6. Retest a full user lifecycle after every security-related change. Document date, device, browser, step, outcome, and redacted evidence.
+
+## 10 November 2026 — final launch hardening progress
+
+**Completed and verified**
+- Applied Supabase migration `linkbook_public_launch_fk_indexes_20261110`: 12 non-destructive `CREATE INDEX IF NOT EXISTS` statements on identified foreign-key columns in public tables. Read-back confirmed all 12 named `lb_*_fk_idx` indexes exist.
+- Supabase performance advisor re-run: previous `unindexed_foreign_keys` category is no longer reported. The advisor now flags unused indexes (including these new, not-yet-used indexes; expected until representative queries run) and 4 multiple-permissive-policy notices. Do not drop new or prior indexes solely based on usage counts in this small beta.
+- Security advisor re-run: `auth_leaked_password_protection` remains WARN (needs configuration from dashboard; not enabled by this migration).
+- Verified GitHub Pages latest deployment completed successfully for previous changes. Existing LinkBook admin account and social records were not altered.
+
+**Still required before general release**
+1. Enable leaked-password protection in Supabase Authentication and rerun security advisor: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+2. Review the four overlapping permissive RLS policies for performance while keeping member/moderator authorizations equivalent; avoid changing permissions without cross-account regression tests.
+3. Test reporter-to-moderator workflow, account deletion and blocking with disposable accounts; keep the existing role grants safe.
+4. Test MP4 posting/playback, Android/Windows regression, user registration and account recovery on actual devices.
+5. Measure realistic multi-user load and storage costs, establish backups, support and incident response.
+6. Keep Live in beta until multi-party streaming and front/back camera are verified.
+
+**Update to prior Android status:** A small Android JPG upload returned POST 200 on 10 November 2026 and was linked to a published image post; a Lenovo JPG upload likewise succeeded. Earlier Android JPG/PNG failures are historical evidence. Multi-device repeatability and MP4 remain unverified.
+
