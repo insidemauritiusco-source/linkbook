@@ -82,6 +82,10 @@
  .mobile-nav button small { font-size: 9px; }
  .composer-actions .primary { width: 100%; }
 }
+@media (max-width: 350px) {
+ .top .brand strong { display: none; }
+ .top .brand { flex: 0 0 auto; }
+}
 @media (prefers-reduced-motion: reduce) {
  .mobile-nav, .filters { scroll-behavior: auto; }
 }
