@@ -1,0 +1,18 @@
+/* Private 1:1 browser calling (beta). */
+.lb-call-launch{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0;align-items:center}
+.lb-call-launch button{min-height:44px;border:1px solid #b9cced;background:#eaf2ff;color:#194b9a;border-radius:12px;padding:9px 14px;font-weight:750}
+.lb-call-launch p{margin:0;font-size:12px;color:#637691;flex-basis:100%}
+.lb-call-overlay{position:fixed;inset:0;z-index:10020;background:#071427e8;display:grid;place-items:center;padding:12px}
+.lb-call-card{width:min(650px,100%);max-height:95dvh;overflow-y:auto;background:#15243a;color:white;border-radius:20px;padding:20px;text-align:center}
+.lb-call-card h2{margin:0 0 6px}.lb-call-card p{color:#dbe6f7}
+.lb-call-stage{position:relative;background:#020916;min-height:140px;aspect-ratio:16/9;border-radius:16px;overflow:hidden}
+.lb-call-stage #lb-call-remote{width:100%;height:100%;object-fit:contain;display:block}
+.lb-call-stage #lb-call-local{position:absolute;right:10px;bottom:10px;width:26%;max-height:37%;object-fit:cover;background:#101828;border-radius:10px;transform:scaleX(-1);border:1px solid #fff5}
+.lb-call-controls{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:15px 0 0}
+.lb-call-controls button{min-width:95px;min-height:46px;border:0;border-radius:12px;padding:10px 14px;font-weight:750;background:#f0f6ff;color:#172b48}
+.lb-call-controls button.lb-call-hangup{background:#ca233a;color:white}
+.lb-call-controls button.lb-call-answer{background:#12824d;color:white}
+#lb-call-notice{position:fixed;bottom:85px;left:10px;right:10px;z-index:10030;padding:13px;text-align:center;background:#eff6ff;color:#17417b;border-radius:12px;box-shadow:0 8px 25px #0003}
+#lb-call-notice[hidden]{display:none}
+body.dark .lb-call-launch button{background:#2b4162;color:#dceaff;border-color:#4a668e}
+@media(max-width:720px){.lb-call-card{padding:14px}.lb-call-stage{aspect-ratio:3/4}.lb-call-controls button{flex:1 1 36%}}
