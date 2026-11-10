@@ -1,0 +1,8 @@
+/* Invite friends — share-sheet and desktop copy link controls. */
+.lb-invite-panel{border:1px solid #c5d9fa;background:linear-gradient(115deg,#edf5ff,#f4f7ff);color:#17315d}
+.lb-invite-panel h3{margin-top:0}
+.lb-invite-panel p{line-height:1.5}
+.lb-invite-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.lb-invite-actions button{min-height:44px;padding:10px 16px;border-radius:11px;cursor:pointer}
+body.dark .lb-invite-panel{background:linear-gradient(115deg,#1e3656,#243452);color:#eaf2ff;border-color:#426287}
+@media(max-width:720px){.lb-invite-actions button{flex:1 1 180px}}
