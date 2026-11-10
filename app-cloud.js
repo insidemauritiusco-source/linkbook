@@ -75,7 +75,7 @@ let scheduled=null;
 function schedule(){clearTimeout(scheduled);scheduled=setTimeout(()=>{refresh().catch(e=>console.error(e))},750)}
 async function refresh(){
  const requests=[
- db.from('profiles').select('id,display_name,bio,location,avatar_url').limit(400),
+ db.from('profiles').select('id,display_name,bio,location,avatar_url,cover_url').limit(400),
  db.from('posts').select('id,author_id,body,media_url,media_type,created_at').order('created_at',{ascending:false}).limit(100),
  db.from('post_likes').select('post_id,user_id').limit(3000),
  db.from('comments').select('id,post_id,author_id,body,created_at').order('created_at',{ascending:true}).limit(3000),
@@ -146,7 +146,7 @@ function profilePage(){
  return '<h1 class="page-title">My profile</h1><section class="panel"><div class="cloud-cover">'+(p.cover_url?'<img class="cloud-cover-photo" loading="lazy" src="'+esc(p.cover_url)+'" alt="Profile cover photo">':'')+'<button class="lb-change-cover" type="button" data-profile-upload="cover">📷 '+(p.cover_url?'Change cover photo':'Add cover photo')+'</button></div><div class="cloud-profile-avatar">'+avatar(p)+'<button class="lb-change-avatar" type="button" data-profile-upload="avatar">📷 '+(p.avatar_url?'Change profile photo':'Add profile photo')+'</button></div><h2>'+esc(profileName(p))+'</h2><p>'+esc(p.bio||'Welcome to my profile!')+'</p><p>📍 '+esc(p.location||'Mauritius')+'</p><button class="secondary" data-page="settings">Edit profile</button></section><h3>Your posts ('+mine.length+')</h3>'+listPosts(mine);
 }
 function settingsPage(){
- return '<h1 class="page-title">Profile settings</h1><section class="panel"><form id="cloudProfile" class="settings-row"><label>Display name</label><input class="form-input" name="display_name" maxlength="70" required value="'+esc(me.display_name)+'"><label>Bio</label><textarea class="form-input" name="bio" maxlength="300">'+esc(me.bio||'')+'</textarea><label>Location</label><input class="form-input" name="location" maxlength="100" value="'+esc(me.location||'Mauritius')+'"><label>Profile picture</label><input class="form-input" type="file" name="avatar" accept="image/jpeg,image/png,image/webp"><label>Cover photo (banner)</label><input class="form-input" type="file" name="cover" accept="image/jpeg,image/png,image/webp" aria-describedby="coverHelp"><small id="coverHelp" class="muted">Recommended 1500 × 500 pixels, JPEG, PNG or WebP, up to 25 MB. Banner adapts to your screen.</small><div id="lbCoverPreview" class="cloud-cover cloud-cover-preview">'+(me.cover_url?'<img class="cloud-cover-photo" src="'+esc(me.cover_url)+'" alt="Current profile cover">':'')+'</div><button class="primary" type="submit">Save profile</button></form></section><section class="panel"><h3>🇲🇺 Mauritius</h3><p>Times shown in Indian/Mauritius (UTC+4).</p></section><section class="panel"><h3>Privacy &amp; safety</h3><p>Your posts are visible to signed-in LinkBook members. You can block members, report content, export your data and delete your account.</p><button class="primary" type="button" data-page="safety">Open Safety &amp; privacy</button></section>';
+ return '<h1 class="page-title">Profile settings</h1><section class="panel"><form id="cloudProfile" class="settings-row"><label>Display name</label><input class="form-input" name="display_name" maxlength="70" required value="'+esc(me.display_name)+'"><label>Bio</label><textarea class="form-input" name="bio" maxlength="300">'+esc(me.bio||'')+'</textarea><label>Location</label><input class="form-input" name="location" maxlength="100" value="'+esc(me.location||'Mauritius')+'"><label>Profile picture</label><input class="form-input" type="file" name="avatar" accept="image/jpeg,image/png,image/webp" aria-describedby="avatarHelp"><small id="avatarHelp" class="muted">Choose a JPG, PNG or WebP image up to 25 MB, then click Save profile below.</small><div class="lb-avatar-preview" id="lbAvatarPreview">'+(me.avatar_url?'<img src="'+esc(me.avatar_url)+'" alt="Current profile photo">':'<span class="avatar">'+icon(profileName(me))+'</span>')+'</div><label>Cover photo (banner)</label><input class="form-input" type="file" name="cover" accept="image/jpeg,image/png,image/webp" aria-describedby="coverHelp"><small id="coverHelp" class="muted">Recommended 1500 × 500 pixels, JPEG, PNG or WebP, up to 25 MB. Banner adapts to your screen.</small><div id="lbCoverPreview" class="cloud-cover cloud-cover-preview">'+(me.cover_url?'<img class="cloud-cover-photo" src="'+esc(me.cover_url)+'" alt="Current profile cover">':'')+'</div><button class="primary" type="submit">Save profile</button></form></section><section class="panel"><h3>🇲🇺 Mauritius</h3><p>Times shown in Indian/Mauritius (UTC+4).</p></section><section class="panel"><h3>Privacy &amp; safety</h3><p>Your posts are visible to signed-in LinkBook members. You can block members, report content, export your data and delete your account.</p><button class="primary" type="button" data-page="safety">Open Safety &amp; privacy</button></section>';
 }
 function notificationsPage(){
  return '<h1 class="page-title">Notifications</h1><section class="panel"><button class="secondary" data-action="readall">Mark all as read</button>'+(notifications.length?notifications.map(n=>'<div class="member"><div class="member-info"><b>'+esc(profileName(person(n.actor_id)))+'</b><small>'+esc(({friend_request:'sent you a friend request',friend_accept:'accepted your friend request',like:'liked your post',comment:'commented on your post',message:'sent you a message'})[n.kind]||n.kind)+'</small><small>'+time(n.created_at)+'</small></div>'+(n.is_read?'':'<span class="cloud-dot">●</span>')+'</div>').join(''):'<p>No notifications yet.</p>')+'</section>';
@@ -370,14 +370,17 @@ async function submit(e){
   const d=new FormData(form),patch={display_name:String(d.get('display_name')||'').trim(),bio:String(d.get('bio')||'').trim(),location:String(d.get('location')||'').trim(),updated_at:new Date().toISOString()};
   if(!patch.display_name)throw Error('Display name required.');
   const avatarFile=form.elements.avatar.files[0],coverFile=form.elements.cover.files[0];
-  if(avatarFile||coverFile)notify('Uploading your profile images…');
+  if(avatarFile||coverFile)notify('Uploading selected profile image'+(avatarFile&&coverFile?'s':'')+'… Please keep this page open.');
   if(avatarFile&&!avatarFile.type.startsWith('image/'))throw Error('Profile picture must be an image.');
   if(coverFile&&!['image/jpeg','image/png','image/webp'].includes(coverFile.type))throw Error('Cover photo must be JPEG, PNG or WebP.');
   if(coverFile)validateMedia(coverFile);
   if(avatarFile)validateMedia(avatarFile);
   const uploaded=await upload(avatarFile);if(uploaded)patch.avatar_url=uploaded.url;
   const coverUploaded=await upload(coverFile);if(coverUploaded)patch.cover_url=coverUploaded.url;
-  await check(db.from('profiles').update(patch).eq('id',user.id).select('id,avatar_url,cover_url').single());page='profile';notify('Profile saved successfully!');
+  const updated=await check(db.from('profiles').update(patch).eq('id',user.id).select('id,avatar_url,cover_url').single());
+  if(avatarFile&&updated.avatar_url!==patch.avatar_url)throw Error('Profile picture did not save. Please retry.');
+  if(coverFile&&updated.cover_url!==patch.cover_url)throw Error('Cover photo did not save. Please retry.');
+  pendingMedia=null;page='profile';notify('Profile pictures and details saved successfully!');
  }else if(id==='cloudMessage'){
   const text=form.elements.body.value.trim();if(!text||!peer)return;
   await check(db.from('messages').insert({sender_id:user.id,recipient_id:peer,body:text}));
@@ -391,6 +394,17 @@ async function submit(e){
 }
 function change(e){
  if(e.target.name==='media'&&e.target.closest('#cloudPost'))previewMedia(e.target.files[0]||null);
+ if(e.target.name==='avatar'&&e.target.closest('#cloudProfile')){
+  const holder=root.querySelector('#lbAvatarPreview'),file=e.target.files?.[0];
+  if(!holder)return;
+  if(!file){holder.innerHTML=me.avatar_url?'<img src="'+esc(me.avatar_url)+'" alt="Current profile photo">':'<span class="avatar">'+icon(profileName(me))+'</span>';return;}
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>25*1024*1024||!file.size){
+   notify('Choose a non-empty JPEG, PNG or WebP profile picture up to 25 MB.',true);e.target.value='';return;
+  }
+  const url=URL.createObjectURL(file),img=document.createElement('img');img.alt='Selected profile photo preview';img.src=url;
+  img.onload=()=>URL.revokeObjectURL(url);img.onerror=()=>URL.revokeObjectURL(url);
+  holder.replaceChildren(img);
+ }
  if(e.target.name==='cover'&&e.target.closest('#cloudProfile')){
   const holder=root.querySelector('#lbCoverPreview'),file=e.target.files?.[0];
   if(!holder)return;
