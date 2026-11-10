@@ -48,7 +48,7 @@ function avatar(p){const name=profileName(p);return p?.avatar_url?'<img class="a
 function relation(id){return friends.find(f=>(f.requester_id===user.id&&f.addressee_id===id)||(f.addressee_id===user.id&&f.requester_id===id));}
 function connected(id){return friends.some(f=>f.status==='accepted'&&[f.requester_id,f.addressee_id].includes(id));}
 async function boot(){
- const rows=await check(db.from('profiles').select('id,display_name,bio,location,avatar_url').eq('id',user.id).maybeSingle());
+ const rows=await check(db.from('profiles').select('id,display_name,bio,location,avatar_url,cover_url').eq('id',user.id).maybeSingle());
  if(!rows){await check(db.from('profiles').insert({id:user.id,display_name:(user.user_metadata?.display_name||user.email?.split('@')[0]||'Member').slice(0,70)}));}
  await refresh();
  await prepareIncomingShare();
@@ -143,10 +143,10 @@ function messagesPage(){
 }
 function profilePage(){
  const p=me, mine=posts.filter(x=>x.author_id===user.id);
- return '<h1 class="page-title">My profile</h1><section class="panel"><div class="cloud-cover"></div><div class="cloud-profile-avatar">'+avatar(p)+'</div><h2>'+esc(profileName(p))+'</h2><p>'+esc(p.bio||'Welcome to my profile!')+'</p><p>📍 '+esc(p.location||'Mauritius')+'</p><button class="secondary" data-page="settings">Edit profile</button></section><h3>Your posts ('+mine.length+')</h3>'+listPosts(mine);
+ return '<h1 class="page-title">My profile</h1><section class="panel"><div class="cloud-cover">'+(p.cover_url?'<img class="cloud-cover-photo" loading="lazy" src="'+esc(p.cover_url)+'" alt="Profile cover photo">':'')+'</div><div class="cloud-profile-avatar">'+avatar(p)+'</div><h2>'+esc(profileName(p))+'</h2><p>'+esc(p.bio||'Welcome to my profile!')+'</p><p>📍 '+esc(p.location||'Mauritius')+'</p><button class="secondary" data-page="settings">Edit profile</button></section><h3>Your posts ('+mine.length+')</h3>'+listPosts(mine);
 }
 function settingsPage(){
- return '<h1 class="page-title">Profile settings</h1><section class="panel"><form id="cloudProfile" class="settings-row"><label>Display name</label><input class="form-input" name="display_name" maxlength="70" required value="'+esc(me.display_name)+'"><label>Bio</label><textarea class="form-input" name="bio" maxlength="300">'+esc(me.bio||'')+'</textarea><label>Location</label><input class="form-input" name="location" maxlength="100" value="'+esc(me.location||'Mauritius')+'"><label>Profile picture</label><input class="form-input" type="file" name="avatar" accept="image/jpeg,image/png,image/webp"><button class="primary">Save profile</button></form></section><section class="panel"><h3>🇲🇺 Mauritius</h3><p>Times shown in Indian/Mauritius (UTC+4).</p></section><section class="panel"><h3>Privacy &amp; safety</h3><p>Your posts are visible to signed-in LinkBook members. You can block members, report content, export your data and delete your account.</p><button class="primary" type="button" data-page="safety">Open Safety &amp; privacy</button></section>';
+ return '<h1 class="page-title">Profile settings</h1><section class="panel"><form id="cloudProfile" class="settings-row"><label>Display name</label><input class="form-input" name="display_name" maxlength="70" required value="'+esc(me.display_name)+'"><label>Bio</label><textarea class="form-input" name="bio" maxlength="300">'+esc(me.bio||'')+'</textarea><label>Location</label><input class="form-input" name="location" maxlength="100" value="'+esc(me.location||'Mauritius')+'"><label>Profile picture</label><input class="form-input" type="file" name="avatar" accept="image/jpeg,image/png,image/webp"><label>Cover photo (banner)</label><input class="form-input" type="file" name="cover" accept="image/jpeg,image/png,image/webp" aria-describedby="coverHelp"><small id="coverHelp" class="muted">Recommended 1500 × 500 pixels, JPEG, PNG or WebP, up to 25 MB. Banner adapts to your screen.</small><div id="lbCoverPreview" class="cloud-cover cloud-cover-preview">'+(me.cover_url?'<img class="cloud-cover-photo" src="'+esc(me.cover_url)+'" alt="Current profile cover">':'')+'</div><button class="primary" type="submit">Save profile</button></form></section><section class="panel"><h3>🇲🇺 Mauritius</h3><p>Times shown in Indian/Mauritius (UTC+4).</p></section><section class="panel"><h3>Privacy &amp; safety</h3><p>Your posts are visible to signed-in LinkBook members. You can block members, report content, export your data and delete your account.</p><button class="primary" type="button" data-page="safety">Open Safety &amp; privacy</button></section>';
 }
 function notificationsPage(){
  return '<h1 class="page-title">Notifications</h1><section class="panel"><button class="secondary" data-action="readall">Mark all as read</button>'+(notifications.length?notifications.map(n=>'<div class="member"><div class="member-info"><b>'+esc(profileName(person(n.actor_id)))+'</b><small>'+esc(({friend_request:'sent you a friend request',friend_accept:'accepted your friend request',like:'liked your post',comment:'commented on your post',message:'sent you a message'})[n.kind]||n.kind)+'</small><small>'+time(n.created_at)+'</small></div>'+(n.is_read?'':'<span class="cloud-dot">●</span>')+'</div>').join(''):'<p>No notifications yet.</p>')+'</section>';
@@ -350,7 +350,13 @@ async function submit(e){
  }else if(id==='cloudProfile'){
   const d=new FormData(form),patch={display_name:String(d.get('display_name')||'').trim(),bio:String(d.get('bio')||'').trim(),location:String(d.get('location')||'').trim(),updated_at:new Date().toISOString()};
   if(!patch.display_name)throw Error('Display name required.');
-  const uploaded=await upload(form.elements.avatar.files[0]);if(uploaded){if(uploaded.type!=='image')throw Error('Profile photo must be an image.');patch.avatar_url=uploaded.url;}
+  const avatarFile=form.elements.avatar.files[0],coverFile=form.elements.cover.files[0];
+  if(avatarFile&&!avatarFile.type.startsWith('image/'))throw Error('Profile picture must be an image.');
+  if(coverFile&&!['image/jpeg','image/png','image/webp'].includes(coverFile.type))throw Error('Cover photo must be JPEG, PNG or WebP.');
+  if(coverFile)validateMedia(coverFile);
+  if(avatarFile)validateMedia(avatarFile);
+  const uploaded=await upload(avatarFile);if(uploaded)patch.avatar_url=uploaded.url;
+  const coverUploaded=await upload(coverFile);if(coverUploaded)patch.cover_url=coverUploaded.url;
   await check(db.from('profiles').update(patch).eq('id',user.id));page='profile';notify('Profile updated!');
  }else if(id==='cloudMessage'){
   const text=form.elements.body.value.trim();if(!text||!peer)return;
@@ -363,7 +369,23 @@ async function submit(e){
  }catch(err){console.error(err);if(id==='cloudPost')mediaStatus(errText(err),true);else notify(errText(err),true)}
  finally{busy=false;if(btn?.isConnected)btn.disabled=false}
 }
-function change(e){if(e.target.name==='media'&&e.target.closest('#cloudPost'))previewMedia(e.target.files[0]||null)}
+function change(e){
+ if(e.target.name==='media'&&e.target.closest('#cloudPost'))previewMedia(e.target.files[0]||null);
+ if(e.target.name==='cover'&&e.target.closest('#cloudProfile')){
+  const holder=root.querySelector('#lbCoverPreview'),file=e.target.files?.[0];
+  if(!holder)return;
+  holder.querySelector('img')?.remove();
+  if(!file)return;
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>25*1024*1024){
+   notify('Choose a JPEG, PNG or WebP banner up to 25 MB.',true);e.target.value='';return;
+  }
+  const objectUrl=URL.createObjectURL(file),image=document.createElement('img');
+  image.className='cloud-cover-photo';image.alt='Selected cover photo preview';image.src=objectUrl;
+  image.onload=()=>URL.revokeObjectURL(objectUrl);
+  image.onerror=()=>URL.revokeObjectURL(objectUrl);
+  holder.append(image);
+ }
+}
 const badge=document.createElement('button');badge.className='cloud-notifications';badge.type='button';badge.title='Notifications';badge.setAttribute('aria-label','Notifications');badge.textContent='🔔';badge.addEventListener('click',()=>switchPage('notifications'));$('.header-actions')?.prepend(badge);
 root.innerHTML='<section class="panel empty">Connecting LinkBook Pro…</section>';
 if(new URLSearchParams(location.search).has('live'))page='live';
