@@ -53,6 +53,7 @@ async function boot(){
  await refresh();
  await prepareIncomingShare();
  window.LinkBookCalls?.init(db,user);
+ window.LinkBookStatus?.init({db,user,upload,displayName:id=>profileName(person(id)),notice:notify});
  $('#search').addEventListener('input',e=>{query=e.target.value.toLowerCase().trim();render()});
  $('#theme').addEventListener('click',()=>{document.body.classList.toggle('dark');localStorage.setItem('linkbook-theme',document.body.classList.contains('dark')?'dark':'light')});
  if(localStorage.getItem('linkbook-theme')==='dark')document.body.classList.add('dark');
@@ -93,7 +94,7 @@ async function refresh(){
  const tip=$('.rightbar .panel:nth-child(2) p');if(tip)tip.textContent='Your posts, messages, friend requests and notifications now sync between signed-in members.';
  // Never rebuild the open composer while Android's file picker is returning focus.
  // Rebuilding its DOM drops the selected FileList and any unpublished caption.
- if(!(page==='feed'&&composer&&root.querySelector('#cloudPost')))render();
+ if(!(page==='feed'&&composer&&root.querySelector('#cloudPost')) && !(page==='status'&&root.querySelector('#lbStatusPost')))render();
 }
 function switchPage(p){pendingMedia=null;pendingPostId=null;selectedMediaFile=null;discardMediaPreview();if(page==='live'&&p!=='live')window.LinkBookLive?.leavePage();page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
 function render(){
@@ -101,6 +102,7 @@ function render(){
  document.querySelectorAll('[data-page]').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
  if(page==='live'){window.LinkBookLive?.render?.(root);return;}
  if(page==='safety'){window.LinkBookSafety?.render?.(root,db,user);return;}
+ if(page==='status'){window.LinkBookStatus?.render?.(root);return;}
  let html=page==='feed'?feed():page==='friends'?friendsPage():page==='messages'?messagesPage():page==='saved'?'<h1 class="page-title">Saved posts</h1>'+listPosts(posts.filter(p=>saved.some(s=>s.post_id===p.id))):page==='profile'?profilePage():page==='settings'?settingsPage():page==='notifications'?notificationsPage():'';
  root.innerHTML=html;
  window.LinkBookRegion?.applyStatic?.();
