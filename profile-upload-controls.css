@@ -1,0 +1,7 @@
+/* Profile cover/avatar edit shortcuts */
+.cloud-cover .lb-change-cover{position:absolute;z-index:2;right:12px;bottom:12px;min-height:42px;border:1px solid #ffffffa8;border-radius:10px;padding:8px 12px;background:#123b77e8;color:#fff;font-weight:750;cursor:pointer;box-shadow:0 2px 10px #0004}
+.cloud-profile-avatar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cloud-profile-avatar .lb-change-avatar{position:relative;z-index:2;min-height:42px;padding:8px 12px;border:1px solid #bcd0ea;border-radius:10px;background:#edf4ff;color:#1a4d9b;font-weight:750;cursor:pointer}
+body.dark .cloud-profile-avatar .lb-change-avatar{background:#243c62;color:#edf5ff;border-color:#5279a5}
+.lb-change-cover:focus-visible,.lb-change-avatar:focus-visible{outline:3px solid #fbbf24;outline-offset:2px}
+@media(max-width:720px){.cloud-cover .lb-change-cover{right:7px;bottom:7px;font-size:12px;padding:6px 9px}.cloud-profile-avatar .lb-change-avatar{font-size:13px}}
