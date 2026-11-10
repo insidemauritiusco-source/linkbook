@@ -1,0 +1,6 @@
+/* Profile picture editor preview, desktop and mobile. */
+.lb-avatar-preview{display:flex;align-items:center;justify-content:center;width:106px;height:106px;border-radius:50%;overflow:hidden;border:3px solid #c3d6f5;background:linear-gradient(135deg,#1e63c5,#17a7d7);margin:3px 0 12px}
+.lb-avatar-preview img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.lb-avatar-preview .avatar{width:100%;height:100%;border:0;border-radius:50%;display:grid;place-items:center;font-size:34px}
+.cloud-profile-avatar img.avatar,.profile-nav img.avatar,.post-author img.avatar,.member img.avatar{object-fit:cover}
+@media(max-width:720px){.lb-avatar-preview{width:94px;height:94px}}
