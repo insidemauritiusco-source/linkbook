@@ -144,7 +144,7 @@
  async function poll(){
   if(!db||!user||polling||document.hidden)return;
   polling=true;
-  try{if(active){if(active.caller_id===user.id || pc)await fetchSignals();}else await incoming();}
+  try{if(active){if(active.id && (active.caller_id===user.id || pc))await fetchSignals();}else await incoming();}
   catch(e){console.warn('Call connection:',e?.message);}
   finally{polling=false;}
  }
