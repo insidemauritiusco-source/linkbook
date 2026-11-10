@@ -5,3 +5,8 @@
 body.dark .cloud-profile-avatar .lb-change-avatar{background:#243c62;color:#edf5ff;border-color:#5279a5}
 .lb-change-cover:focus-visible,.lb-change-avatar:focus-visible{outline:3px solid #fbbf24;outline-offset:2px}
 @media(max-width:720px){.cloud-cover .lb-change-cover{right:7px;bottom:7px;font-size:12px;padding:6px 9px}.cloud-profile-avatar .lb-change-avatar{font-size:13px}}
+
+/* Native file inputs stay inside their label so Android can open Gallery from a user gesture. */
+.lb-change-cover,.lb-change-avatar{display:inline-flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
+.lb-profile-pick-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;overflow:hidden!important;pointer-events:none!important;clip-path:inset(50%)!important}
+.lb-change-cover:focus-within,.lb-change-avatar:focus-within{outline:3px solid #fbbf24;outline-offset:2px}

@@ -143,7 +143,7 @@ function messagesPage(){
 }
 function profilePage(){
  const p=me, mine=posts.filter(x=>x.author_id===user.id);
- return '<h1 class="page-title">My profile</h1><section class="panel"><div class="cloud-cover">'+(p.cover_url?'<img class="cloud-cover-photo" loading="lazy" src="'+esc(p.cover_url)+'" alt="Profile cover photo">':'')+'<button class="lb-change-cover" type="button" data-profile-upload="cover">📷 '+(p.cover_url?'Change cover photo':'Add cover photo')+'</button></div><div class="cloud-profile-avatar">'+avatar(p)+'<button class="lb-change-avatar" type="button" data-profile-upload="avatar">📷 '+(p.avatar_url?'Change profile photo':'Add profile photo')+'</button></div><h2>'+esc(profileName(p))+'</h2><p>'+esc(p.bio||'Welcome to my profile!')+'</p><p>📍 '+esc(p.location||'Mauritius')+'</p><button class="secondary" data-page="settings">Edit profile</button></section><h3>Your posts ('+mine.length+')</h3>'+listPosts(mine);
+ return '<h1 class="page-title">My profile</h1><section class="panel"><div class="cloud-cover">'+(p.cover_url?'<img class="cloud-cover-photo" loading="lazy" src="'+esc(p.cover_url)+'" alt="Profile cover photo">':'')+'<label class="lb-change-cover">📷 '+(p.cover_url?'Change cover photo':'Add cover photo')+'<input class="lb-profile-pick-input" type="file" name="quickCover" data-quick-profile="cover" accept="image/jpeg,image/png,image/webp" aria-label="Choose cover photo from Gallery"></label></div><div class="cloud-profile-avatar">'+avatar(p)+'<label class="lb-change-avatar">📷 '+(p.avatar_url?'Change profile photo':'Add profile photo')+'<input class="lb-profile-pick-input" type="file" name="quickAvatar" data-quick-profile="avatar" accept="image/jpeg,image/png,image/webp" aria-label="Choose profile picture from Gallery"></label></div><h2>'+esc(profileName(p))+'</h2><p>'+esc(p.bio||'Welcome to my profile!')+'</p><p>📍 '+esc(p.location||'Mauritius')+'</p><button class="secondary" data-page="settings">Edit profile</button></section><h3>Your posts ('+mine.length+')</h3>'+listPosts(mine);
 }
 function settingsPage(){
  return '<h1 class="page-title">Profile settings</h1><section class="panel"><form id="cloudProfile" class="settings-row"><label>Display name</label><input class="form-input" name="display_name" maxlength="70" required value="'+esc(me.display_name)+'"><label>Bio</label><textarea class="form-input" name="bio" maxlength="300">'+esc(me.bio||'')+'</textarea><label>Location</label><input class="form-input" name="location" maxlength="100" value="'+esc(me.location||'Mauritius')+'"><label>Profile picture</label><input class="form-input" type="file" name="avatar" accept="image/jpeg,image/png,image/webp" aria-describedby="avatarHelp"><small id="avatarHelp" class="muted">Choose a JPG, PNG or WebP image up to 25 MB, then click Save profile below.</small><div class="lb-avatar-preview" id="lbAvatarPreview">'+(me.avatar_url?'<img src="'+esc(me.avatar_url)+'" alt="Current profile photo">':'<span class="avatar">'+icon(profileName(me))+'</span>')+'</div><label>Cover photo (banner)</label><input class="form-input" type="file" name="cover" accept="image/jpeg,image/png,image/webp" aria-describedby="coverHelp"><small id="coverHelp" class="muted">Recommended 1500 × 500 pixels, JPEG, PNG or WebP, up to 25 MB. Banner adapts to your screen.</small><div id="lbCoverPreview" class="cloud-cover cloud-cover-preview">'+(me.cover_url?'<img class="cloud-cover-photo" src="'+esc(me.cover_url)+'" alt="Current profile cover">':'')+'</div><button class="primary" type="submit">Save profile</button></form></section><section class="panel"><h3>🇲🇺 Mauritius</h3><p>Times shown in Indian/Mauritius (UTC+4).</p></section><section class="panel"><h3>Privacy &amp; safety</h3><p>Your posts are visible to signed-in LinkBook members. You can block members, report content, export your data and delete your account.</p><button class="primary" type="button" data-page="safety">Open Safety &amp; privacy</button></section>';
@@ -306,8 +306,6 @@ async function click(e){
   }
   return;
  }
- const quick=e.target.closest('[data-profile-upload]');
- if(quick){const field=quick.dataset.profileUpload;switchPage('settings');root.querySelector('#cloudProfile input[name="'+field+'"]')?.click();return;}
  const pg=e.target.closest('[data-page]');if(pg){switchPage(pg.dataset.page);return}
  const fs=e.target.closest('[data-filter]');if(fs){filter=fs.dataset.filter;render();return}
  if(e.target.closest('#openComposer')){pendingMedia=null;pendingPostId=null;selectedMediaFile=null;composer=true;render();return}
@@ -392,7 +390,31 @@ async function submit(e){
  }catch(err){console.error(err);if(id==='cloudPost')mediaStatus(errText(err),true);else notify(errText(err),true)}
  finally{busy=false;if(btn?.isConnected)btn.disabled=false}
 }
+let quickProfileUploading=false;
+async function saveQuickProfileImage(input){
+ const field=input.dataset.quickProfile,selected=input.files?.[0];
+ if(!selected||!['avatar','cover'].includes(field))return;
+ if(quickProfileUploading){notify('An image is uploading. Please finish the current upload first.',true);input.value='';return;}
+ if(!['image/jpeg','image/png','image/webp'].includes(selected.type)||selected.size<=0||selected.size>25*1024*1024){
+  notify('Choose a JPEG, PNG or WebP image up to 25 MB.',true);input.value='';return;
+ }
+ quickProfileUploading=true;
+ try{
+  notify((field==='cover'?'Cover photo':'Profile picture')+' uploading… Please keep LinkBook open.');
+  pendingMedia=null;
+  const uploaded=await upload(selected);
+  if(!uploaded?.url)throw Error('Image upload did not return an address.');
+  const patch={updated_at:new Date().toISOString(),[field==='cover'?'cover_url':'avatar_url']:uploaded.url};
+  const row=await check(db.from('profiles').update(patch).eq('id',user.id).select('id,avatar_url,cover_url').single());
+  if(row[field==='cover'?'cover_url':'avatar_url']!==uploaded.url)throw Error('Image saved incorrectly. Please retry.');
+  pendingMedia=null;
+  await refresh();
+  notify(field==='cover'?'Cover photo saved!':'Profile picture saved!');
+ }catch(err){console.error('Quick profile upload:',err);notify('Could not save photo: '+errText(err),true);}
+ finally{quickProfileUploading=false;}
+}
 function change(e){
+ if(e.target.matches('input[data-quick-profile]')){saveQuickProfileImage(e.target);return;}
  if(e.target.name==='media'&&e.target.closest('#cloudPost'))previewMedia(e.target.files[0]||null);
  if(e.target.name==='avatar'&&e.target.closest('#cloudProfile')){
   const holder=root.querySelector('#lbAvatarPreview'),file=e.target.files?.[0];
