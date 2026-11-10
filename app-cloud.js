@@ -132,7 +132,7 @@ function friendsPage(){
  else controls='<button class="secondary" data-person="'+p.id+'" data-friend="remove">Dismissed</button>';
  return '<div class="member">'+avatar(p)+'<div class="member-info"><b>'+esc(profileName(p))+'</b><small>'+esc(p.location||'Mauritius')+'</small></div>'+controls+'</div>';
  }
- return '<h1 class="page-title">Friends & requests</h1><section class="panel"><h3>Friend requests ('+pending.length+')</h3>'+(pending.length?pending.map(f=>card(person(f.requester_id))).join(''):'<p>No pending requests.</p>')+'</section><section class="panel"><h3>Discover members</h3>'+(found.length?found.map(card).join(''):'<p>No other members registered yet.</p>')+'</section>';
+ return '<h1 class="page-title">Friends & requests</h1><section class="panel lb-invite-panel"><h3>Invite friends to LinkBook</h3><p>Share LinkBook with friends on WhatsApp, Messenger or other apps. They can sign up and send you a friend request.</p><div class="lb-invite-actions"><button type="button" class="primary" data-invite="share">↗ Invite friends</button><button type="button" class="secondary" data-invite="copy">Copy invitation link</button></div></section><section class="panel"><h3>Friend requests ('+pending.length+')</h3>'+(pending.length?pending.map(f=>card(person(f.requester_id))).join(''):'<p>No pending requests.</p>')+'</section><section class="panel"><h3>Discover members</h3>'+(found.length?found.map(card).join(''):'<p>No other members registered yet.</p>')+'</section>';
 }
 function messagesPage(){
  const contacts=people.filter(p=>p.id!==user.id&&connected(p.id));
@@ -289,6 +289,23 @@ async function savePost(body,uploaded){
 }
 
 async function click(e){
+ const invite=e.target.closest('[data-invite]');
+ if(invite){
+  e.preventDefault();
+  const link=location.origin+location.pathname;
+  const message='Join me on LinkBook! Create your free account, share photos and videos, chat and video call with friends. '+link;
+  if(invite.dataset.invite==='share'&&navigator.share){
+   navigator.share({title:'Join me on LinkBook',text:'Join me on LinkBook! Connect with friends, share photos and videos, chat and call.',url:link})
+    .catch(error=>{if(error?.name!=='AbortError')notify('Unable to open Share menu. Use Copy invitation link.',true);});
+  }else{
+   const copy=async()=>{
+    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(message);notify('Invitation copied! Paste it into WhatsApp or Messenger.');}
+    else prompt('Copy this invitation and share it with your friends:',message);
+   };
+   copy().catch(()=>prompt('Copy this invitation and share it with your friends:',message));
+  }
+  return;
+ }
  const quick=e.target.closest('[data-profile-upload]');
  if(quick){const field=quick.dataset.profileUpload;switchPage('settings');root.querySelector('#cloudProfile input[name="'+field+'"]')?.click();return;}
  const pg=e.target.closest('[data-page]');if(pg){switchPage(pg.dataset.page);return}
