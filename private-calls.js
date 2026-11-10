@@ -2,7 +2,7 @@
 (() => {
  'use strict';
  let db = null, user = null, active = null, screen = null, timer = null, polling = false;
- let localStream = null, remoteStream = null, pc = null, lastSignal = 0, pendingIce = [];
+ let localStream = null, remoteStream = null, pc = null, lastSignal = 0, pendingIce = [], callGeneration = 0;
  const seen = new Set();
  const rtc = {iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
  const esc = x => String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -24,6 +24,7 @@
   await request(db.from('private_call_signals').insert({session_id:active.id,sender_id:user.id,recipient_id:other,kind,payload}));
  }
  async function end(notify=true,reason='Call ended'){
+  callGeneration++;
   if(notify&&active){try{await signal('hangup');}catch(e){console.warn('Could not send call end',e?.message);}}
   active=null;lastSignal=0;stopTracks();removeScreen();
   if(reason)toast(reason);
@@ -132,13 +133,15 @@
   controls.innerHTML='<button class="lb-call-answer" id="lb-call-answer">Answer</button><button class="lb-call-hangup" id="lb-call-decline">Decline</button>';
   screen.querySelector('#lb-call-decline').onclick=async()=>{try{await signal('decline');}catch(_){}await end(false,'Call declined');};
   screen.querySelector('#lb-call-answer').onclick=async()=>{
+   const token=++callGeneration, expectedId=active.id;
    try{
     view('Requesting microphone and camera permission…');
     await attachMedia();
+    if(token!==callGeneration || active?.id!==expectedId){stopTracks();return;}
     peerConnection();
     await fetchSignals();
-    status('Connecting…');
-   }catch(e){await end(true,'Unable to answer: '+e.message);}
+    if(token===callGeneration)status('Connecting…');
+   }catch(e){if(token===callGeneration)await end(true,'Unable to answer: '+e.message);}
   };
  }
  async function poll(){
@@ -154,16 +157,22 @@
   if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection){toast('Your browser does not support secure calls.');return;}
   try{
    // Only accepted contacts appear in Messages; RLS also checks accepted friendship.
+   const token=++callGeneration;
    active={id:null,caller_id:user.id,callee_id:other,mode};
    view('Requesting microphone and camera permission…');
    await attachMedia();
+   if(token!==callGeneration){stopTracks();return;}
    const saved=await request(db.from('private_call_sessions').insert({caller_id:user.id,callee_id:other,mode}).select('id,caller_id,callee_id,mode,created_at').single());
+   if(token!==callGeneration){
+    try{await request(db.from('private_call_signals').insert({session_id:saved.id,sender_id:user.id,recipient_id:other,kind:'hangup',payload:{}}));}catch(_){}
+    return;
+   }
    active=saved;lastSignal=0;
    const connection=peerConnection();
    const offer=await connection.createOffer();await connection.setLocalDescription(offer);
    await signal('offer',{sdp:connection.localDescription.toJSON()});
    status('Calling…');
-  }catch(e){await end(false,'Could not start call: '+(e.message||'Check permissions and friendship status'));}
+  }catch(e){if(active)await end(false,'Could not start call: '+(e.message||'Check permissions and friendship status'));}
  }
  function init(client,member){
   if(db)return;
