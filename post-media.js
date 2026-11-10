@@ -21,6 +21,9 @@
      video.controls = true;
      video.autoplay = false;
      video.removeAttribute('autoplay');
+     video.addEventListener('play', () => {
+       for (const other of active) if (other !== video && !other.paused) other.pause();
+     });
      video.addEventListener('ended', () => video.pause());
      if (io) io.observe(video);
    });
