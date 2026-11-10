@@ -5,16 +5,20 @@
  .top {
   box-sizing: border-box;
   width: 100%;
-  padding: 0 10px;
-  gap: 7px;
+  height: auto;
+  min-height: 63px;
+  padding: 8px 10px;
+  gap: 8px;
+  flex-wrap: wrap;
   min-width: 0;
  }
  .top .brand { flex: 0 0 auto; min-width: 0; font-size: clamp(16px,4.7vw,21px); gap: 6px; white-space: nowrap; }
  .top .mark { width: 34px; height: 34px; min-width: 34px; font-size: 23px; border-radius: 11px; }
- .top .search { flex: 1 1 36px; min-width: 0; max-width: 70px; padding: 8px; justify-content: center; }
+ .top .search { order: 3; flex: 1 0 100%; min-width: 0; max-width: none; padding: 8px 11px; justify-content: flex-start; }
  .top .search input { min-width: 0; width: 100%; }
- .top .search:focus-within { max-width: none; flex: 1 1 100px; }
- .header-actions { flex: 0 0 auto; gap: 4px; min-width: 0; }
+ .top .search:focus-within { max-width: none; }
+ .header-actions { flex: 0 0 auto; gap: 4px; min-width: 0; margin-left: auto; }
+ .header-actions .signout-button { font-size: 12px; padding: 8px 9px; }
  .header-actions .circle, .header-actions .cloud-notifications { width: 36px; height: 36px; padding: 5px; display: grid; place-items: center; }
  .header-actions .avatar.small { width: 34px; height: 34px; }
  .layout { width: 100%; max-width: 100%; min-width: 0; padding: 12px 10px calc(100px + env(safe-area-inset-bottom, 0px)); }
@@ -67,7 +71,8 @@
 }
 @media (max-width: 400px) {
  .top { padding: 0 7px; gap: 5px; }
- .top .brand { font-size: 16px; }
+ .top .brand { font-size: 15px; }
+ .header-actions .signout-button { font-size: 11px; padding: 7px 6px; }
  .top .mark { width: 31px; height: 31px; min-width: 31px; }
  .header-actions { gap: 2px; }
  .header-actions .circle, .header-actions .cloud-notifications { width: 32px; height: 34px; }
