@@ -1,0 +1,26 @@
+/* LinkBook Status: 24-hour mobile and desktop updates. */
+.lb-status-compose{margin-bottom:16px}
+.lb-status-compose h2,.lb-status-list h2{margin-top:0}
+.lb-status-compose form{display:flex;flex-direction:column;gap:11px}
+.lb-status-compose textarea{width:100%;box-sizing:border-box;min-height:105px;padding:12px;border-radius:12px;border:1px solid #a4b9d5;background:var(--field,#fff);color:inherit;font:inherit;resize:vertical}
+.lb-status-select{display:flex;flex-direction:column;align-items:flex-start;gap:7px;font-weight:650}
+.lb-status-select input{max-width:100%;font:inherit}
+.lb-status-compose button[type=submit]{min-height:44px;align-self:flex-start}
+.lb-status-compose button[disabled]{opacity:.6}
+#lb-status-feedback{padding:11px 14px;border-radius:10px;background:#e0f2fe;color:#075985;overflow-wrap:anywhere}
+#lb-status-feedback.error{background:#fee2e2;color:#991b1b}
+#lb-status-feedback[hidden]{display:none}
+.lb-status-list{display:grid;gap:14px}
+.lb-status-item{background:var(--card,#fff);border:1px solid #9cb5d24d;border-radius:16px;padding:15px;min-width:0}
+.lb-status-item-head{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.lb-status-item-head strong{font-size:16px}
+.lb-status-item-head small{color:var(--muted,#8592a7);font-size:12px}
+.lb-status-item-head button{margin-left:auto;border:1px solid #c4cfe0;border-radius:9px;padding:8px 12px;min-height:40px;background:transparent;color:inherit}
+.lb-status-text{font-size:16px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.lb-status-media{display:block;width:100%;max-height:min(70dvh,620px);object-fit:contain;margin-top:10px;border-radius:12px;background:#111827}
+#lb-status-preview{display:grid;gap:7px}
+#lb-status-preview:empty{display:none}
+.lb-status-empty{opacity:.8}
+body.dark .lb-status-item{background:#1d2d47;border-color:#405d84}
+body.dark .lb-status-compose textarea{background:#1a2a41;border-color:#4f6d95}
+@media(max-width:720px){.lb-status-item{padding:12px}.lb-status-compose button[type=submit]{width:100%}}
