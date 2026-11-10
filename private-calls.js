@@ -172,7 +172,7 @@
    const button=event.target.closest('[data-private-call]');
    if(button){event.preventDefault();start(button.dataset.privateCall,button.dataset.mode==='video'?'video':'audio');}
   });
-  timer=setInterval(poll,2300);
+  timer=setInterval(poll,5000);
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&active){status('Return to LinkBook to keep the call connected.');}else poll();});
   window.addEventListener('beforeunload',stopTracks);
   poll();
