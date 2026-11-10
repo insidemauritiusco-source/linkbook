@@ -32,16 +32,16 @@ self.addEventListener('fetch',event=>{
    const form=await event.request.formData();
    const files=form.getAll('media').filter(item=>item instanceof File&&item.size>0);
    const file=files[0]||null;
-   if(files.length>1) return Response.redirect(PREFIX+'?share_error=one_file',303);
+   if(files.length>1) return Response.redirect(new URL(PREFIX+'?share_error=one_file',self.location.origin).href,303);
    if(file&&(!ALLOWED.has(file.type)||file.size>25*1024*1024))
-    return Response.redirect(PREFIX+'?share_error=unsupported_file',303);
+    return Response.redirect(new URL(PREFIX+'?share_error=unsupported_file',self.location.origin).href,303);
    const title=String(form.get('title')||'').slice(0,800);
    const text=String(form.get('text')||'').slice(0,4000);
    const urlText=String(form.get('url')||'').slice(0,2000);
-   if(!file&&!title&&!text&&!urlText)return Response.redirect(PREFIX+'?share_error=empty',303);
+   if(!file&&!title&&!text&&!urlText)return Response.redirect(new URL(PREFIX+'?share_error=empty',self.location.origin).href,303);
    const key=crypto.randomUUID();
    await storeShare(key,{file,title,text,url:urlText,created:Date.now()});
-   return Response.redirect(PREFIX+'?shared='+encodeURIComponent(key),303);
-  }catch(_){return Response.redirect(PREFIX+'?share_error=storage',303);}
+   return Response.redirect(new URL(PREFIX+'?shared='+encodeURIComponent(key),self.location.origin).href,303);
+  }catch(_){return Response.redirect(new URL(PREFIX+'?share_error=storage',self.location.origin).href,303);}
  })());
 });
