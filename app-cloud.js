@@ -143,7 +143,7 @@ function messagesPage(){
 }
 function profilePage(){
  const p=me, mine=posts.filter(x=>x.author_id===user.id);
- return '<h1 class="page-title">My profile</h1><section class="panel"><div class="cloud-cover">'+(p.cover_url?'<img class="cloud-cover-photo" loading="lazy" src="'+esc(p.cover_url)+'" alt="Profile cover photo">':'')+'</div><div class="cloud-profile-avatar">'+avatar(p)+'</div><h2>'+esc(profileName(p))+'</h2><p>'+esc(p.bio||'Welcome to my profile!')+'</p><p>📍 '+esc(p.location||'Mauritius')+'</p><button class="secondary" data-page="settings">Edit profile</button></section><h3>Your posts ('+mine.length+')</h3>'+listPosts(mine);
+ return '<h1 class="page-title">My profile</h1><section class="panel"><div class="cloud-cover">'+(p.cover_url?'<img class="cloud-cover-photo" loading="lazy" src="'+esc(p.cover_url)+'" alt="Profile cover photo">':'')+'<button class="lb-change-cover" type="button" data-profile-upload="cover">📷 '+(p.cover_url?'Change cover photo':'Add cover photo')+'</button></div><div class="cloud-profile-avatar">'+avatar(p)+'<button class="lb-change-avatar" type="button" data-profile-upload="avatar">📷 '+(p.avatar_url?'Change profile photo':'Add profile photo')+'</button></div><h2>'+esc(profileName(p))+'</h2><p>'+esc(p.bio||'Welcome to my profile!')+'</p><p>📍 '+esc(p.location||'Mauritius')+'</p><button class="secondary" data-page="settings">Edit profile</button></section><h3>Your posts ('+mine.length+')</h3>'+listPosts(mine);
 }
 function settingsPage(){
  return '<h1 class="page-title">Profile settings</h1><section class="panel"><form id="cloudProfile" class="settings-row"><label>Display name</label><input class="form-input" name="display_name" maxlength="70" required value="'+esc(me.display_name)+'"><label>Bio</label><textarea class="form-input" name="bio" maxlength="300">'+esc(me.bio||'')+'</textarea><label>Location</label><input class="form-input" name="location" maxlength="100" value="'+esc(me.location||'Mauritius')+'"><label>Profile picture</label><input class="form-input" type="file" name="avatar" accept="image/jpeg,image/png,image/webp"><label>Cover photo (banner)</label><input class="form-input" type="file" name="cover" accept="image/jpeg,image/png,image/webp" aria-describedby="coverHelp"><small id="coverHelp" class="muted">Recommended 1500 × 500 pixels, JPEG, PNG or WebP, up to 25 MB. Banner adapts to your screen.</small><div id="lbCoverPreview" class="cloud-cover cloud-cover-preview">'+(me.cover_url?'<img class="cloud-cover-photo" src="'+esc(me.cover_url)+'" alt="Current profile cover">':'')+'</div><button class="primary" type="submit">Save profile</button></form></section><section class="panel"><h3>🇲🇺 Mauritius</h3><p>Times shown in Indian/Mauritius (UTC+4).</p></section><section class="panel"><h3>Privacy &amp; safety</h3><p>Your posts are visible to signed-in LinkBook members. You can block members, report content, export your data and delete your account.</p><button class="primary" type="button" data-page="safety">Open Safety &amp; privacy</button></section>';
@@ -289,6 +289,8 @@ async function savePost(body,uploaded){
 }
 
 async function click(e){
+ const quick=e.target.closest('[data-profile-upload]');
+ if(quick){const field=quick.dataset.profileUpload;switchPage('settings');root.querySelector('#cloudProfile input[name="'+field+'"]')?.click();return;}
  const pg=e.target.closest('[data-page]');if(pg){switchPage(pg.dataset.page);return}
  const fs=e.target.closest('[data-filter]');if(fs){filter=fs.dataset.filter;render();return}
  if(e.target.closest('#openComposer')){pendingMedia=null;pendingPostId=null;selectedMediaFile=null;composer=true;render();return}
@@ -351,13 +353,14 @@ async function submit(e){
   const d=new FormData(form),patch={display_name:String(d.get('display_name')||'').trim(),bio:String(d.get('bio')||'').trim(),location:String(d.get('location')||'').trim(),updated_at:new Date().toISOString()};
   if(!patch.display_name)throw Error('Display name required.');
   const avatarFile=form.elements.avatar.files[0],coverFile=form.elements.cover.files[0];
+  if(avatarFile||coverFile)notify('Uploading your profile images…');
   if(avatarFile&&!avatarFile.type.startsWith('image/'))throw Error('Profile picture must be an image.');
   if(coverFile&&!['image/jpeg','image/png','image/webp'].includes(coverFile.type))throw Error('Cover photo must be JPEG, PNG or WebP.');
   if(coverFile)validateMedia(coverFile);
   if(avatarFile)validateMedia(avatarFile);
   const uploaded=await upload(avatarFile);if(uploaded)patch.avatar_url=uploaded.url;
   const coverUploaded=await upload(coverFile);if(coverUploaded)patch.cover_url=coverUploaded.url;
-  await check(db.from('profiles').update(patch).eq('id',user.id));page='profile';notify('Profile updated!');
+  await check(db.from('profiles').update(patch).eq('id',user.id).select('id,avatar_url,cover_url').single());page='profile';notify('Profile saved successfully!');
  }else if(id==='cloudMessage'){
   const text=form.elements.body.value.trim();if(!text||!peer)return;
   await check(db.from('messages').insert({sender_id:user.id,recipient_id:peer,body:text}));
