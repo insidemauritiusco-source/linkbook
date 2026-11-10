@@ -95,7 +95,7 @@ function render(container){
   }catch(error){feedback('Could not publish status: '+(error.message||'Please try again.'),true);}
   finally{working=false;if(button.isConnected)button.disabled=false;}
  });
- container.addEventListener('click',async function onDelete(event){
+ container.onclick=async function onDelete(event){
   const button=event.target.closest('[data-remove-status]');
   if(!button||working)return;
   if(!confirm('Delete this status?'))return;
@@ -107,7 +107,7 @@ function render(container){
    if(notice)notice('Status deleted.');
   }catch(error){feedback('Delete failed: '+(error.message||'Retry'),true);}
   finally{working=false;if(button.isConnected)button.disabled=false;}
- },{once:false});
+ };
  load(container);
 }
 function init(config){
