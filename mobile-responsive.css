@@ -1,0 +1,82 @@
+/* LinkBook mobile-only layout improvements. Desktop rules stay untouched. */
+@media (max-width: 720px) {
+ html { overflow-x: clip; }
+ body { min-width: 0; overflow-x: clip; }
+ .top {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 10px;
+  gap: 7px;
+  min-width: 0;
+ }
+ .top .brand { flex: 0 0 auto; min-width: 0; font-size: clamp(16px,4.7vw,21px); gap: 6px; white-space: nowrap; }
+ .top .mark { width: 34px; height: 34px; min-width: 34px; font-size: 23px; border-radius: 11px; }
+ .top .search { flex: 1 1 36px; min-width: 0; max-width: 70px; padding: 8px; justify-content: center; }
+ .top .search input { min-width: 0; width: 100%; }
+ .top .search:focus-within { max-width: none; flex: 1 1 100px; }
+ .header-actions { flex: 0 0 auto; gap: 4px; min-width: 0; }
+ .header-actions .circle, .header-actions .cloud-notifications { width: 36px; height: 36px; padding: 5px; display: grid; place-items: center; }
+ .header-actions .avatar.small { width: 34px; height: 34px; }
+ .layout { width: 100%; max-width: 100%; min-width: 0; padding: 12px 10px calc(100px + env(safe-area-inset-bottom, 0px)); }
+ main#content { min-width: 0; max-width: 100%; }
+ .panel, .post { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+ .page-title { font-size: clamp(19px, 5vw, 23px); line-height: 1.25; }
+ .composer-header { min-width: 0; }
+ .composer-header .write { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+ .post-author { min-width: 0; }
+ .post-author > div { min-width: 0; }
+ .post-author .name { overflow-wrap: anywhere; }
+ .post-body { margin: 14px 0; line-height: 1.5; }
+ .post-image, .lb-media {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(72svh, 600px);
+  height: auto;
+  object-fit: contain;
+  background: #111827;
+  border-radius: 12px;
+ }
+ .cloud-media-thumb { width: 100%; max-width: 100%; height: auto; max-height: min(65svh, 500px); object-fit: contain; }
+ .cloud-media-preview { min-width: 0; padding: 10px; overflow: hidden; }
+ .cloud-pick { max-width: 100%; min-width: 0; }
+ .cloud-pick input { width: 100%; max-width: 100%; min-width: 0; }
+ .cloud-upload-status { overflow-wrap: anywhere; line-height: 1.45; }
+ .composer-actions { align-items: stretch; flex-wrap: wrap; gap: 10px; }
+ .composer-actions .primary { min-height: 44px; flex: 0 0 auto; }
+ .post-actions { gap: 2px; }
+ .post-actions button { min-height: 44px; padding: 9px 3px; font-size: 12px; }
+ .comment-entry { min-width: 0; }
+ .comment-entry input { min-width: 0; width: 100%; }
+ .filters { max-width: 100%; min-width: 0; gap: 7px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 3px; }
+ .filters button { flex: 0 0 auto; min-height: 42px; padding: 9px 14px; white-space: nowrap; }
+ .mobile-nav {
+  box-sizing: border-box; width: 100%;
+  min-height: 68px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  gap: 0;
+  overflow-x: auto; overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+ }
+ .mobile-nav button { flex: 1 0 0; min-width: 46px; max-width: none; padding: 9px 1px 8px; min-height: 62px; font-size: 23px; }
+ .mobile-nav button small { font-size: 10px; line-height: 1.15; overflow-wrap: normal; }
+ .cloud-toast { left: 10px; right: 10px; max-width: none; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+ .lb-live-stage, .lb-live-social, .lb-camera-chooser { max-width: 100%; min-width: 0; }
+ .lb-live-stage video { width: 100%; max-width: 100%; }
+ .member, .safety-actions { min-width: 0; }
+}
+@media (max-width: 400px) {
+ .top { padding: 0 7px; gap: 5px; }
+ .top .brand { font-size: 16px; }
+ .top .mark { width: 31px; height: 31px; min-width: 31px; }
+ .header-actions { gap: 2px; }
+ .header-actions .circle, .header-actions .cloud-notifications { width: 32px; height: 34px; }
+ .layout { padding-left: 6px; padding-right: 6px; }
+ .panel, .post { padding: 12px; border-radius: 13px; }
+ .mobile-nav button { min-width: 44px; }
+ .mobile-nav button small { font-size: 9px; }
+ .composer-actions .primary { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .mobile-nav, .filters { scroll-behavior: auto; }
+}
