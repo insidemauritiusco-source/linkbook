@@ -1,0 +1,20 @@
+/* Fit posted photos and videos automatically without cropping them. */
+.post { min-width: 0; }
+.post .post-image, .post .lb-media {
+ display: block;
+ width: 100%;
+ max-width: 100%;
+ height: auto;
+ max-height: min(75vh, 720px);
+ object-fit: contain;
+ background: #111827;
+ border-radius: 12px;
+}
+.post video.post-image {
+ aspect-ratio: auto;
+ background: #0f172a;
+}
+.post .post-image:not(video) { background: transparent; }
+@media (max-width: 720px) {
+ .post .post-image, .post .lb-media { max-height: min(72svh, 600px); }
+}
