@@ -2,18 +2,27 @@
 
 ## Deployed in this change
 - Signed-in members find **Device notifications (beta)** in the Notifications panel (bell icon).
-- Buttons: Enable device alerts; Send test alert; Disable on this device.
+- Buttons: Enable device alerts; Test on this screen; Send background test; Disable on this device.
 - Enable asks browser permission on a direct user tap, registers the existing /linkbook/ service worker, subscribes using Web Push, and saves the endpoint plus public subscription key material to `public.push_subscriptions`.
 - Authenticated row-level security limits users to their own subscriptions; `anon` has no table access.
 - Foreground new-notification events can display a device notification while LinkBook is active and permission is granted.
-- A **local browser notification test** checks permission and the service worker. It does not prove network background push delivery.
+- **Test on this screen** checks permission and the service worker. **Send background test** uses the authenticated server sender and requires the member to verify receipt on their device.
 - The service worker supports a standard Web Push `push` event and opens `/linkbook/?notifications=1` when clicked.
 - Sharing from Android Gallery remains on the same service worker.
 
-## Not active yet — DO NOT advertise as live background alerts
-The client alone cannot send authenticated encrypted push messages to remote devices. A separate trusted backend sender must be configured with a matching **VAPID private signing key** and Web Push encryption. This change deliberately does **not** commit a private signing key to GitHub or call an insecure sender from the browser.
+## Current background sender (beta, requires real-device acceptance testing)
+- A trusted Supabase Edge Function named `linkbook-push-dispatch` and a notifications table insert trigger now exist. The backend retrieves encrypted VAPID credentials from Supabase Vault; no private signing key is shipped in public GitHub files.
+- The signed-in device obtains the corresponding **public** VAPID key from the server before subscribing. Existing subscriptions created using the earlier public key are replaced only when the member explicitly presses **Enable device alerts**.
+- After registering a device, **Send background test** invokes the backend using the current signed-in user's token. The server restricts self-tests to that user's own endpoints and rate-limits them.
+- **Test on this screen** still displays a device-local alert only. It cannot prove background server delivery.
+- Server activation and signed-in delivery are implemented, but a confirmed push received on a Samsung with LinkBook fully closed, as well as a true second-account message test, **are not verified**. The feature remains Public Beta and should not be promised as reliable until those tests pass.
 
-The public signing key embedded in `device-alerts.js` is staging-only. Before full launch, provision an operator-controlled persistent keypair in the server secrets manager, update the frontend public key if it changes, and re-enable subscriptions. Configure an authenticated sender/worker that reads only recipient-owned push subscriptions, sends a generic notification payload, handles invalid 404/410 endpoints, and enforces per-member rate limiting and audit logging. Connect that worker to new rows in `public.notifications` using a secure, backend-triggered queue or webhook. Never expose the Supabase service-role key or VAPID private key in browser JavaScript, public GitHub files, push messages, or SQL functions callable by ordinary members.
+## Server-side safety and support
+- Only the backend may read private VAPID credentials and dispatch push notifications. Never paste the private key into client code, GitHub, or this document.
+- The Edge Function uses owner-scoped device subscriptions and checks the actual notification recipient before dispatching. It filters allowed notification kinds and avoids sending private message text.
+- Invalid endpoints can be removed by the server after a 404/410 response. Delivery attempts are deduplicated for notification-row events.
+- If server health, browser permission, device connection, or VAPID signing fails, users can still read existing in-app notifications.
+- Keep the existing RLS policies on `push_subscriptions`; do not expose push endpoint lists to other members.
 
 ## Acceptance testing
 1. Open LinkBook in Android Chrome / installed PWA and tap the bell → Enable device alerts → Allow.
