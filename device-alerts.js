@@ -3,7 +3,7 @@
 'use strict';
 const PUBLIC_VAPID_KEY='BNl_fm05sThO2DMGI3c4pVXHWlZ0n9NdW41QDE_1ib6lvpYdtrogVQzjmMwkwcqAtHTQHUSXU5aEF7RNBDCoIGQ';
 let db,user,notice;
-let processing=false,ready=false;
+let processing=false;
 function available(){return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;}
 function decode(value){
  const padded=value+'='.repeat((4-value.length%4)%4);
@@ -73,15 +73,8 @@ function onNotification(item){
   data:{url:'/linkbook/'}
  })).catch(error=>console.warn('Local notification unavailable:',error?.message||error));
 }
-async function dispatch(){
- if(!db||!user)return;
- try{
-  const {error}=await db.functions.invoke('linkbook-push-dispatch',{body:{kind:'recent'}});
-  if(error)console.info('Background push not available yet:',error.message);
- }catch(error){console.info('Background push attempt pending configuration:',error?.message);}
-}
 function init(config){
- db=config.db;user=config.user;notice=config.notice;ready=true;
+ db=config.db;user=config.user;notice=config.notice;
  document.addEventListener('click',event=>{
   const command=event.target.closest('[data-push-action]')?.dataset.pushAction;
   if(!command)return;
@@ -96,5 +89,5 @@ function controls(){
  '<div class="lb-push-actions"><button type="button" data-push-action="enable" id="lb-push-enable">Enable device alerts</button><button type="button" data-push-action="test">Send test alert</button><button type="button" data-push-action="disable" id="lb-push-disable">Disable on this device</button></div>'+
  '<p class="lb-push-detail" id="lb-push-status" role="status">'+label()+'</p></section>';
 }
-window.LinkBookDeviceAlerts={init,controls,onNotification,dispatch};
+window.LinkBookDeviceAlerts={init,controls,onNotification};
 })();
