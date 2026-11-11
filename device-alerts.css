@@ -1,0 +1,10 @@
+/* Opt-in LinkBook notification settings on mobile and desktop. */
+.lb-push-panel{margin-bottom:16px;border:1px solid #4b80bf69}
+.lb-push-panel h3{margin-top:0}
+.lb-push-panel p{line-height:1.5}
+.lb-push-actions{display:flex;gap:9px;flex-wrap:wrap}
+.lb-push-actions button{min-height:44px;border:1px solid #86aee0;border-radius:10px;background:#24569f;color:#fff;padding:9px 13px;font:inherit;font-weight:700;cursor:pointer}
+.lb-push-actions button:disabled{opacity:.55;cursor:not-allowed}
+.lb-push-actions button[data-push-action="disable"]{background:transparent;color:inherit}
+.lb-push-detail{font-size:13px;color:inherit;opacity:.85;margin-bottom:0}
+@media(max-width:720px){.lb-push-actions button{flex:1 1 170px}}
