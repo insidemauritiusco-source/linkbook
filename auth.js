@@ -57,7 +57,7 @@ function loadApp(){
   if(loaded)return;
   loaded=true;
   const s=document.createElement('script');
-  s.src=window.linkbookSignedInUser && window.linkbookSupabase ? 'app-cloud.js?v=20261111-device-alerts' : 'app.js';
+  s.src=window.linkbookSignedInUser && window.linkbookSupabase ? 'app-cloud.js?v=20261111-friend-search' : 'app.js';
   s.onerror=()=>alert('LinkBook could not load. Please refresh.');
   document.body.appendChild(s);
 }
