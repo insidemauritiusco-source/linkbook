@@ -31,3 +31,10 @@ Endpoint URLs are pseudonymous notification routing identifiers, but treat them 
 
 ## Existing behavior preserved
 Original in-app notifications, chats, posts, account registration, Android Share Target and Status remain intact.
+
+## Update 11 November 2026 — secure sender linked
+- An authenticated Supabase Edge Function named `linkbook-push-dispatch` is deployed with a public readiness endpoint, allowing browser registrations to use its actual VAPID public signing key.
+- Supabase Vault stores the server-only VAPID private key and webhook token; neither is copied into the public repository. A database trigger on `public.notifications` queues delivery for messages, friend requests and the existing supported notification types.
+- **Before expecting a push, existing subscribed devices must open Notifications → Enable device alerts again.** Their former subscriptions were created with a different public signing key, so they cannot be used by the server. The updated browser code renews the subscriptions.
+- The “Test background push” button asks the secure server to send a real push to the signed-in account only, subject to a 2-minute rate limit. The local test alert is separate and does not demonstrate background delivery.
+- Server and database configurations have been inspected; end-to-end Samsung delivery with LinkBook closed remains to be verified. Unsubscribe old devices only when requested by the owner.
