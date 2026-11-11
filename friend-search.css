@@ -1,0 +1,13 @@
+/* Fast Facebook-like friends lookup on phones and laptops. */
+.lb-friend-search{margin-bottom:16px}
+.lb-friend-search h2{margin-top:0;font-size:20px}
+.lb-friend-search label{display:block;font-weight:700;margin:8px 0}
+.lb-friend-search input[type=search]{display:block;box-sizing:border-box;width:100%;min-height:48px;border:1px solid #729fc9;border-radius:12px;padding:12px 14px;background:var(--field,#fff);color:inherit;font:inherit}
+.lb-friend-search input[type=search]:focus{outline:3px solid #4795e866;outline-offset:1px}
+.lb-friend-result{min-width:0;gap:10px}
+.lb-friend-buttons{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
+.lb-friend-buttons button{min-height:42px;padding:8px 12px}
+#friendSearchResults{max-height:640px;overflow-y:auto}
+#friendSearchResults .member{border-bottom:1px solid #8fa2c526;padding:12px 0}
+#friendSearchResults .member:last-child{border-bottom:none}
+@media(max-width:640px){.lb-friend-result{flex-wrap:wrap}.lb-friend-buttons{width:100%;margin-left:0}.lb-friend-buttons button{flex:1 1 auto}}
