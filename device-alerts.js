@@ -1,7 +1,20 @@
 /* LinkBook device alerts: permission and push subscription, opt-in only. */
 (() => {
 'use strict';
-const PUBLIC_VAPID_KEY='BOWg8SjBmB0TQ5G-aAdc024StChNpGZJSOOY3vxkMB4lmXCtPnxhiCe2dQpC7hJ7IMewX5TJi8DnXzUSLQ7V7p8';
+// The server derives the matching public VAPID key from its protected private key.
+async function currentVapidKey(){
+ const base=window.LINKBOOK_AUTH?.url;
+ if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(base||''))throw Error('LinkBook backend is not configured.');
+ const session=await db.auth.getSession();
+ if(session.error||!session.data?.session?.access_token)throw Error('Sign in again to register notifications.');
+ const response=await fetch(base+'/functions/v1/linkbook-push-dispatch',{method:'GET',cache:'no-store',headers:{'Authorization':'Bearer '+session.data.session.access_token,'apikey':window.LINKBOOK_AUTH?.publishableKey||''}});
+ if(!response.ok)throw Error('Background notification server is not ready ('+response.status+').');
+ const data=await response.json();
+ if(!data?.ready||typeof data.publicKey!=='string')throw Error('Server signing key is unavailable.');
+ const bytes=decode(data.publicKey);
+ if(bytes.length!==65||bytes[0]!==4)throw Error('Server public signing key is invalid.');
+ return bytes;
+}
 let db,user,notice;
 let processing=false;
 function available(){return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;}
@@ -33,7 +46,7 @@ async function enable(){
   if(response!=='granted')throw Error('Notifications were not allowed in this browser.');
   const reg=await registration();
   let existing=await reg.pushManager.getSubscription();
-  const requiredKey=decode(PUBLIC_VAPID_KEY);
+  const requiredKey=await currentVapidKey();
   const actualKey=existing?.options?.applicationServerKey;
   const sameKey=actualKey&&actualKey.byteLength===requiredKey.length&&Array.from(new Uint8Array(actualKey)).every((value,index)=>value===requiredKey[index]);
   if(existing&&!sameKey){
