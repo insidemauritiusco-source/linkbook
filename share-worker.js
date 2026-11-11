@@ -45,3 +45,33 @@ self.addEventListener('fetch',event=>{
   }catch(_){return Response.redirect(new URL(PREFIX+'?share_error=storage',self.location.origin).href,303);}
  })());
 });
+
+/* Background Web Push messages for subscribed devices.
+   Push payload must be supplied by a separately configured secure server. */
+self.addEventListener('push',event=>{
+ let data={};
+ try{data=event.data?.json()||{};}catch(_){data={};}
+ const allowed=['New LinkBook notification','New message on LinkBook','New friend request on LinkBook','LinkBook activity'];
+ const title=allowed.includes(data.title)?data.title:'New LinkBook notification';
+ const body=typeof data.body==='string'?data.body.slice(0,180):'Open LinkBook to see your update.';
+ event.waitUntil(self.registration.showNotification(title,{
+  body,icon:PREFIX+'icon.svg',badge:PREFIX+'icon.svg',
+  tag:'linkbook-push-'+String(data.id||'activity').slice(0,80),
+  data:{url:PREFIX+'?notifications=1'}
+ }));
+});
+self.addEventListener('notificationclick',event=>{
+ event.notification.close();
+ event.waitUntil((async()=>{
+  const target=new URL(PREFIX+'?notifications=1',self.location.origin).href;
+  const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  for(const client of windows){
+   if(new URL(client.url).origin===self.location.origin && new URL(client.url).pathname.startsWith(PREFIX)){
+    await client.focus();
+    if('navigate' in client)await client.navigate(target);
+    return;
+   }
+  }
+  return self.clients.openWindow(target);
+ })());
+});
