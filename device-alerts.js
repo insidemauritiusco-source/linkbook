@@ -100,7 +100,7 @@ async function backgroundTest(){
   const {data,error}=await db.functions.invoke('linkbook-push-dispatch',{body:{kind:'self_test'}});
   if(error)throw Error(error.message||'Background sender unavailable');
   if(!data?.accepted||!data?.sent)throw Error(data?.error||'No push accepted; check server setup and device subscription.');
-  notice?.('Background push accepted by server. Close LinkBook and check whether a phone alert appears.');
+  notice?.('Server accepted the background test. Check your notification shade. Then test with LinkBook closed by receiving a message from another account.');
  }catch(error){notice?.('Background push test failed: '+(error?.message||'Please retry.'),true);}
  finally{processing=false;refreshLabel();}
 }
