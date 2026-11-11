@@ -1,0 +1,27 @@
+/* Facebook-inspired status/story rail for LinkBook home feed */
+.lb-home-stories{padding:15px;margin-bottom:15px;min-width:0}
+.lb-stories-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+.lb-stories-heading strong{font-size:17px}
+.lb-stories-heading span{font-size:12px;color:#889bb5}
+.lb-stories-scroller{display:flex;align-items:flex-start;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding:5px 2px 10px;scrollbar-width:thin}
+.lb-story-button,.lb-story-add{appearance:none;display:flex;flex:0 0 91px;min-width:0;flex-direction:column;align-items:center;gap:8px;background:transparent;color:inherit;border:0;padding:3px;cursor:pointer;scroll-snap-align:start;font:inherit}
+.lb-story-ring{width:78px;height:78px;border-radius:50%;border:4px solid #3486f9;box-shadow:0 0 0 2px #9bc4fc55;overflow:hidden;display:grid;place-items:center;background:#213b64;color:white}
+.lb-story-ring img{display:block;width:100%;height:100%;object-fit:cover}
+.lb-story-initial{font-size:27px;font-weight:800}
+.lb-story-label{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:700}
+.lb-story-add-icon{width:78px;height:78px;border-radius:50%;background:linear-gradient(135deg,#246ef2,#12b6bb);color:white;display:grid;place-items:center;border:3px dashed #acd3ff;font-size:41px;font-weight:500;line-height:1}
+.lb-story-add>span:last-child{font-size:12px;font-weight:700}
+.lb-stories-loading,.lb-stories-empty{font-size:13px;color:#8694a9;align-self:center}
+.lb-story-button:focus-visible,.lb-story-add:focus-visible{outline:3px solid #60a5fa;outline-offset:3px;border-radius:14px}
+body.lb-story-open{overflow:hidden}
+.lb-story-modal{position:fixed;inset:0;z-index:10040;background:#020715ef;padding:12px;display:flex;justify-content:center;align-items:center}
+.lb-story-card{width:min(480px,100%);max-height:min(95dvh,900px);overflow-y:auto;background:#142541;color:#f7fbff;border:1px solid #436ca3;border-radius:20px;padding:15px;box-shadow:0 15px 70px #0008}
+.lb-story-modal-head,.lb-story-modal-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lb-story-modal-head{margin-bottom:10px}
+.lb-story-close,.lb-story-modal-foot button{border:1px solid #7294b7;border-radius:9px;background:#28446d;color:#fff;padding:9px 12px;min-height:44px;cursor:pointer}
+.lb-story-modal-foot{margin-top:12px}
+.lb-story-modal-foot button:disabled{opacity:.4;cursor:default}
+.lb-story-content{min-height:200px;max-height:72dvh;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#07182e;border-radius:14px;padding:10px}
+.lb-story-view-media{width:100%;max-height:60dvh;object-fit:contain;border-radius:10px}
+.lb-story-view-text{width:100%;font-size:18px;line-height:1.55;text-align:center;overflow-wrap:anywhere;white-space:pre-wrap;margin:8px 0}
+@media(max-width:720px){.lb-home-stories{padding:12px}.lb-stories-scroller{gap:9px}.lb-story-button,.lb-story-add{flex-basis:80px}.lb-story-ring,.lb-story-add-icon{width:70px;height:70px}.lb-story-modal{padding:6px}.lb-story-card{max-height:96dvh;padding:11px}}

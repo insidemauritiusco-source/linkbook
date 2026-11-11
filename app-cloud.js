@@ -54,6 +54,7 @@ async function boot(){
  await prepareIncomingShare();
  window.LinkBookCalls?.init(db,user);
  window.LinkBookStatus?.init({db,user,upload,displayName:id=>profileName(person(id)),notice:notify});
+ window.LinkBookHomeStories?.init({db,user,displayName:id=>profileName(person(id)),avatarUrl:id=>person(id)?.avatar_url||null});
  $('#search').addEventListener('input',e=>{query=e.target.value.toLowerCase().trim();render()});
  $('#theme').addEventListener('click',()=>{document.body.classList.toggle('dark');localStorage.setItem('linkbook-theme',document.body.classList.contains('dark')?'dark':'light')});
  if(localStorage.getItem('linkbook-theme')==='dark')document.body.classList.add('dark');
@@ -96,7 +97,7 @@ async function refresh(){
  // Rebuilding its DOM drops the selected FileList and any unpublished caption.
  if(!(page==='feed'&&composer&&root.querySelector('#cloudPost')) && !(page==='status'&&root.querySelector('#lbStatusPost')))render();
 }
-function switchPage(p){pendingMedia=null;pendingPostId=null;selectedMediaFile=null;discardMediaPreview();if(page==='live'&&p!=='live')window.LinkBookLive?.leavePage();page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
+function switchPage(p){window.LinkBookHomeStories?.close?.();pendingMedia=null;pendingPostId=null;selectedMediaFile=null;discardMediaPreview();if(page==='live'&&p!=='live')window.LinkBookLive?.leavePage();page=p;composer=false;render();window.scrollTo({top:0,behavior:'smooth'})}
 function render(){
  if(selectedMediaUrl && (!composer||page!=='feed'))discardMediaPreview();
  document.querySelectorAll('[data-page]').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
@@ -105,13 +106,14 @@ function render(){
  if(page==='status'){window.LinkBookStatus?.render?.(root);return;}
  let html=page==='feed'?feed():page==='friends'?friendsPage():page==='messages'?messagesPage():page==='saved'?'<h1 class="page-title">Saved posts</h1>'+listPosts(posts.filter(p=>saved.some(s=>s.post_id===p.id))):page==='profile'?profilePage():page==='settings'?settingsPage():page==='notifications'?notificationsPage():'';
  root.innerHTML=html;
+ if(page==='feed')window.LinkBookHomeStories?.render?.(root.querySelector('#lbHomeStories'));
  window.LinkBookRegion?.applyStatic?.();
 }
 function feed(){
  let rows=posts.filter(p=>!query||(p.body+' '+profileName(person(p.author_id))).toLowerCase().includes(query));
  if(filter==='top')rows=[...rows].sort((a,b)=>likes.filter(l=>l.post_id===b.id).length-likes.filter(l=>l.post_id===a.id).length);
  if(filter==='friends')rows=rows.filter(p=>p.author_id===user.id||connected(p.author_id));
- return '<h1 class="page-title">Your feed ✦</h1><section class="panel composer"><div class="composer-header">'+avatar(me)+'<button class="write" id="openComposer">What’s on your mind, '+esc(profileName(me).split(' ')[0])+'?</button></div>'+
+ return '<h1 class="page-title">Your feed ✦</h1><section id="lbHomeStories" class="panel lb-home-stories" aria-label="Recent stories"></section><section class="panel composer"><div class="composer-header">'+avatar(me)+'<button class="write" id="openComposer">What’s on your mind, '+esc(profileName(me).split(' ')[0])+'?</button></div>'+
  (composer?'<form id="cloudPost"><textarea name="body" maxlength="4000" placeholder="Share your news, photos or moments..." aria-label="Write a post"></textarea><div class="cloud-upload"><label class="cloud-pick">📷 Choose photo or video <input type="file" name="media" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" aria-describedby="fileHelp"></label><span id="fileLabel" aria-live="polite"></span></div><small id="fileHelp" class="muted">JPEG, PNG, WebP, GIF, MP4 or WebM · Maximum 25 MB</small><div id="mediaPreview" class="cloud-media-preview" hidden></div><div id="uploadStatus" class="cloud-upload-status" role="status" aria-live="polite" hidden></div><div class="composer-actions"><small class="muted">Visible to signed-in LinkBook members</small><button class="primary" type="submit">Publish</button></div></form>':'<div class="composer-actions"><span class="muted">✎ Share your thoughts</span><button class="primary" id="openComposer">Create post</button></div>')+
  '</section><div class="filters"><button data-filter="latest" class="'+(filter==='latest'?'active':'')+'">Latest</button><button data-filter="top" class="'+(filter==='top'?'active':'')+'">Popular</button><button data-filter="friends" class="'+(filter==='friends'?'active':'')+'">Friends</button></div>'+listPosts(rows);
 }
