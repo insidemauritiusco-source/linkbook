@@ -3,6 +3,7 @@
  'use strict';
  let db = null, user = null, active = null, screen = null, timer = null, polling = false;
  let localStream = null, remoteStream = null, pc = null, lastSignal = 0, pendingIce = [], callGeneration = 0;
+ let soundUnlocked=false;
  const seen = new Set();
  const rtc = {iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
  const esc = x => String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -15,7 +16,7 @@
  function removeScreen(){screen?.remove();screen=null;}
  function stopTracks(){
   if(localStream){localStream.getTracks().forEach(track=>track.stop());localStream=null;}
-  remoteStream=null;pendingIce=[];
+  remoteStream=null;pendingIce=[];soundUnlocked=false;
   if(pc){pc.onicecandidate=null;pc.ontrack=null;pc.onconnectionstatechange=null;pc.close();pc=null;}
  }
  async function signal(kind,payload={}){
@@ -36,6 +37,32 @@
   notice.hidden=false;
   clearTimeout(toast.timeout);toast.timeout=setTimeout(()=>{notice.hidden=true;},4000);
  }
+ function audioState(){
+  const tracks=remoteStream?.getAudioTracks()||[];
+  const microphone=localStream?.getAudioTracks()?.[0];
+  if(!microphone)return 'Microphone unavailable. Check browser permission.';
+  if(!microphone.enabled)return 'Your microphone is muted. Tap Unmute to speak.';
+  if(!tracks.length)return 'Waiting for the other person\'s microphone audio…';
+  if(tracks.every(t=>t.muted||t.readyState!=='live'))return 'Remote audio not flowing yet. Ask the other person to unmute.';
+  return 'Audio connected. If silent, tap Hear audio and check speaker volume.';
+ }
+ async function playRemote(){
+  const remote=screen?.querySelector('#lb-call-remote');
+  if(!remote||!remote.srcObject)return;
+  remote.muted=false;remote.volume=1;remote.autoplay=true;
+  try{
+   await remote.play();soundUnlocked=true;
+   const button=screen?.querySelector('#lb-call-hear');
+   if(button)button.textContent='🔊 Hear audio';
+   const hint=screen?.querySelector('#lb-call-audio-help');
+   if(hint)hint.textContent=audioState();
+  }catch(e){
+   soundUnlocked=false;
+   const hint=screen?.querySelector('#lb-call-audio-help');
+   if(hint)hint.textContent='Tap 🔊 Hear audio to allow sound. Also check your phone or laptop volume.';
+   console.warn('Remote audio needs user playback gesture:',e?.name||'blocked');
+  }
+ }
  function view(state){
   removeScreen();
   const dialog=document.createElement('section');dialog.className='lb-call-overlay';
@@ -45,14 +72,22 @@
   dialog.innerHTML='<div class="lb-call-card"><h2>'+esc(active?.mode==='video'?'📹 Video call':'📞 Voice call')+'</h2>'+
    '<p>'+esc(name(other))+'</p><p id="lb-call-status" role="status">'+esc(state)+'</p>'+
    '<div class="lb-call-stage"><video id="lb-call-remote" autoplay playsinline></video><video id="lb-call-local" autoplay playsinline muted></video></div>'+
-   '<div class="lb-call-controls"><button type="button" id="lb-call-mute">Mute</button>'+
+   '<p id="lb-call-audio-help" class="lb-call-audio-help" role="status" aria-live="polite">Check microphone permission and speaker volume.</p>'+ 
+   '<div class="lb-call-controls"><button type="button" id="lb-call-hear">🔊 Hear audio</button><button type="button" id="lb-call-mute">Mute</button>'+
    (active?.mode==='video'?'<button type="button" id="lb-call-camera">Camera off</button>':'')+
    '<button type="button" class="lb-call-hangup" id="lb-call-end">End call</button></div></div>';
   document.body.append(dialog);screen=dialog;
   dialog.querySelector('#lb-call-end').onclick=()=>end(true);
+  dialog.querySelector('#lb-call-hear').onclick=()=>{playRemote();};
+  const remoteVideo=dialog.querySelector('#lb-call-remote');
+  remoteVideo.muted=false;
+  remoteVideo.volume=1;
+  remoteVideo.addEventListener('loadedmetadata',()=>{playRemote();});
+  remoteVideo.addEventListener('click',()=>{playRemote();});
   dialog.querySelector('#lb-call-mute').onclick=()=>{
    const track=localStream?.getAudioTracks()?.[0];if(!track)return;
    track.enabled=!track.enabled;dialog.querySelector('#lb-call-mute').textContent=track.enabled?'Mute':'Unmute';
+   const hint=dialog.querySelector('#lb-call-audio-help');if(hint)hint.textContent=audioState();
   };
   const camera=dialog.querySelector('#lb-call-camera');
   if(camera)camera.onclick=()=>{
@@ -60,10 +95,13 @@
    track.enabled=!track.enabled;camera.textContent=track.enabled?'Camera off':'Camera on';
   };
   if(localStream)dialog.querySelector('#lb-call-local').srcObject=localStream;
-  if(remoteStream)dialog.querySelector('#lb-call-remote').srcObject=remoteStream;
+  if(remoteStream){dialog.querySelector('#lb-call-remote').srcObject=remoteStream;playRemote();}
  }
  async function attachMedia(){
-  localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:active.mode==='video'});
+  localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:active.mode==='video'});
+  if(!localStream.getAudioTracks().length)throw Error('Microphone track unavailable. Allow microphone access and try again.');
+  const mic=localStream.getAudioTracks()[0];mic.enabled=true;
+  const hint=screen?.querySelector('#lb-call-audio-help');if(hint)hint.textContent='Microphone ready. Waiting for other person to answer…';
   const local=screen?.querySelector('#lb-call-local');
   if(local)local.srcObject=localStream;
  }
@@ -72,10 +110,20 @@
   pc=new RTCPeerConnection(rtc);
   pc.onicecandidate=e=>{if(e.candidate&&active)signal('ice',{candidate:e.candidate.toJSON()}).catch(console.warn);};
   pc.ontrack=e=>{
-   remoteStream=e.streams[0]||new MediaStream([e.track]);
+   if(!remoteStream)remoteStream=new MediaStream();
+   // Browsers may signal audio and video tracks in separate track events.
+   const tracks=e.streams?.[0]?.getTracks()||[e.track];
+   for(const track of tracks){
+    if(!remoteStream.getTracks().some(t=>t.id===track.id))remoteStream.addTrack(track);
+    if(track.kind==='audio'){
+     track.onunmute=()=>{const hint=screen?.querySelector('#lb-call-audio-help');if(hint)hint.textContent=audioState();playRemote();};
+     track.onmute=()=>{const hint=screen?.querySelector('#lb-call-audio-help');if(hint)hint.textContent=audioState();};
+    }
+   }
    const remote=screen?.querySelector('#lb-call-remote');
-   if(remote){remote.srcObject=remoteStream;remote.play().catch(()=>status('Tap the video to start playback')); }
+   if(remote){remote.srcObject=remoteStream;playRemote();}
    status('Connected');
+   const hint=screen?.querySelector('#lb-call-audio-help');if(hint)hint.textContent=audioState();
   };
   pc.onconnectionstatechange=()=>{
    if(pc?.connectionState==='failed')status('Connection failed. Try another network or end and retry.');
