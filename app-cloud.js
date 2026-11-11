@@ -268,8 +268,25 @@ async function upload(file){
  }catch(err){
   if((retryTools.retryable(err)||Number(err?.status||err?.statusCode)===409)&&await exists())item.complete=true;
   else {
-   console.warn('LinkBook storage upload:',storageTools.issue(err,err?.route||'storage'));
-   throw userUploadError(new Error(storageTools.diagnostic(err,err?.route||'storage')));
+   const issue=storageTools.issue(err,err?.route||'storage');
+   // Some Android networks pass Storage OPTIONS but interrupt POST.
+   // Try a different Supabase-supported protocol before giving up.
+   if(issue.kind==='network'){
+    mediaStatus('Normal upload connection failed. Trying resumable transfer…');
+    try{
+     await resumableUpload(file,path);
+     item.complete=true;
+    }catch(tusError){
+     if(await exists())item.complete=true;
+     else{
+      console.warn('LinkBook resumable upload failed:',String(tusError?.message||tusError).slice(0,180));
+      throw userUploadError(new Error('LB-UPLOAD-NET (direct, gateway and resumable). Storage was unreachable using all upload routes. Please retry on another network. Your selected file remains in the form.'));
+     }
+    }
+   }else{
+    console.warn('LinkBook storage upload:',issue);
+    throw userUploadError(new Error(storageTools.diagnostic(err,err?.route||'storage')));
+   }
   }
  }
  return result;
