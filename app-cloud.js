@@ -11,7 +11,7 @@ const icon=s=>esc((s||'?').trim().charAt(0).toUpperCase());
 const profileName=p=>p?.display_name||'Member';
 const errText=e=>String(e?.message||e||'Something went wrong');
 let me=null,people=[],posts=[],likes=[],comments=[],saved=[],friends=[],messages=[],notifications=[];
-let page='feed',filter='latest',query='',peer=null,busy=false,composer=false,file=null,channel=null;
+let page='feed',filter='latest',query='',friendSearch='',peer=null,busy=false,composer=false,file=null,channel=null;
 let selectedMediaFile=null,pendingMedia=null,pendingPostId=null;
 const retryTools=window.LinkBookMediaRetry;
 const storageTools=window.LinkBookStorageTransport;
@@ -59,6 +59,12 @@ async function boot(){
  $('#search').addEventListener('input',e=>{query=e.target.value.toLowerCase().trim();render()});
  $('#theme').addEventListener('click',()=>{document.body.classList.toggle('dark');localStorage.setItem('linkbook-theme',document.body.classList.contains('dark')?'dark':'light')});
  if(localStorage.getItem('linkbook-theme')==='dark')document.body.classList.add('dark');
+ document.addEventListener('input',e=>{
+  if(e.target.id!=='friendNameSearch'||page!=='friends')return;
+  friendSearch=e.target.value.slice(0,70);
+  const results=root.querySelector('#friendSearchResults');
+  if(results)results.innerHTML=friendResults();
+ });
  document.addEventListener('click',click);
  document.addEventListener('submit',submit);
  document.addEventListener('change',change);
@@ -126,25 +132,33 @@ function listPosts(rows){
  return '<article class="post"><div class="post-author">'+avatar(a)+'<div><div class="name">'+esc(profileName(a))+'</div><small>'+time(p.created_at)+' · 🌐 Members</small></div><div class="spacer"></div><button class="more" data-action="save" data-id="'+p.id+'" aria-label="Save post">'+(bookmarked?'★':'☆')+'</button>'+(p.author_id===user.id?'<button class="more" data-action="delete" data-id="'+p.id+'" aria-label="Delete post">🗑</button>':'<button class="more" data-action="report" data-id="'+p.id+'" aria-label="Report post">⚑</button><button class="more" data-action="block" data-id="'+p.author_id+'" aria-label="Block member">🚫</button>')+'</div><div class="post-body">'+esc(p.body)+'</div>'+media+'<div class="counts"><span>👍 '+pl.length+' likes</span><span>'+cm.length+' comments</span></div><div class="post-actions"><button class="'+(liked?'liked':'')+'" data-action="like" data-id="'+p.id+'">'+(liked?'💙 Liked':'♡ Like')+'</button><button data-action="comment" data-id="'+p.id+'">◌ Comment</button><button data-action="share" data-id="'+p.id+'">↗ Share</button></div><div class="comments">'+cm.map(c=>'<div class="comment"><b>'+esc(profileName(person(c.author_id)))+'</b> '+esc(c.body)+'</div>').join('')+'<form class="comment-entry" data-comment="'+p.id+'"><input name="comment" required maxlength="600" placeholder="Write a comment..." aria-label="Write comment"><button class="primary">Send</button></form></div></article>';
  }).join('');
 }
+function friendCard(p){
+ const f=relation(p.id),status=f?.status;
+ let controls='';
+ if(!f)controls='<button type="button" class="primary" data-person="'+p.id+'" data-friend="add">Add Friend</button>';
+ else if(status==='pending'&&f.requester_id===user.id)controls='<button type="button" class="secondary" data-person="'+p.id+'" data-friend="remove">Request Sent · Cancel</button>';
+ else if(status==='pending')controls='<button type="button" class="primary" data-person="'+p.id+'" data-friend="accept">Accept Friend</button><button type="button" class="secondary" data-person="'+p.id+'" data-friend="remove">Decline</button>';
+ else if(status==='accepted')controls='<button type="button" class="primary" data-message-person="'+p.id+'">Message</button><button type="button" class="secondary" data-person="'+p.id+'" data-friend="remove">Remove friend</button>';
+ else controls='<button type="button" class="secondary" data-person="'+p.id+'" data-friend="remove">Dismissed</button>';
+ return '<div class="member lb-friend-result">'+avatar(p)+'<div class="member-info"><b>'+esc(profileName(p))+'</b><small>'+esc(p.location||'Mauritius')+'</small></div><div class="lb-friend-buttons">'+controls+'</div></div>';
+}
+function friendResults(){
+ const q=friendSearch.trim().toLocaleLowerCase();
+ const found=people.filter(p=>p.id!==user.id&&(!q||profileName(p).toLocaleLowerCase().includes(q))).slice(0,100);
+ return found.length?found.map(friendCard).join(''):'<p class="empty">No members found with that name. Try a different spelling, or invite your friend to join LinkBook.</p>';
+}
 function friendsPage(){
  const pending=friends.filter(f=>f.addressee_id===user.id&&f.status==='pending');
- const found=people.filter(p=>p.id!==user.id&&(!query||profileName(p).toLowerCase().includes(query)));
- function card(p){const f=relation(p.id),status=f?.status;let controls;
- if(!f)controls='<button class="primary" data-person="'+p.id+'" data-friend="add">Add friend</button>';
- else if(status==='pending'&&f.requester_id===user.id)controls='<button class="secondary" data-person="'+p.id+'" data-friend="remove">Cancel request</button>';
- else if(status==='pending')controls='<button class="primary" data-person="'+p.id+'" data-friend="accept">Accept</button><button class="secondary" data-person="'+p.id+'" data-friend="remove">Decline</button>';
- else if(status==='accepted')controls='<button class="secondary" data-person="'+p.id+'" data-friend="remove">Remove friend</button>';
- else controls='<button class="secondary" data-person="'+p.id+'" data-friend="remove">Dismissed</button>';
- return '<div class="member">'+avatar(p)+'<div class="member-info"><b>'+esc(profileName(p))+'</b><small>'+esc(p.location||'Mauritius')+'</small></div>'+controls+'</div>';
- }
- return '<h1 class="page-title">Friends & requests</h1><section class="panel lb-invite-panel"><h3>Invite friends to LinkBook</h3><p>Share LinkBook with friends on WhatsApp, Messenger or other apps. They can sign up and send you a friend request.</p><div class="lb-invite-actions"><button type="button" class="primary" data-invite="share">↗ Invite friends</button><button type="button" class="secondary" data-invite="copy">Copy invitation link</button></div></section><section class="panel"><h3>Friend requests ('+pending.length+')</h3>'+(pending.length?pending.map(f=>card(person(f.requester_id))).join(''):'<p>No pending requests.</p>')+'</section><section class="panel"><h3>Discover members</h3>'+(found.length?found.map(card).join(''):'<p>No other members registered yet.</p>')+'</section>';
+ return '<h1 class="page-title">Find Friends</h1><section class="panel lb-friend-search"><h2>🔎 Search people by name</h2><label for="friendNameSearch">Search LinkBook members</label><input type="search" id="friendNameSearch" autocomplete="off" maxlength="70" placeholder="Type a name, e.g. Vikash" value="'+esc(friendSearch)+'" aria-controls="friendSearchResults"><p class="muted">Find someone, tap Add Friend, then they can accept your request.</p><div id="friendSearchResults" aria-live="polite">'+friendResults()+'</div></section>'+
+ '<section class="panel"><h3>Friend requests ('+pending.length+')</h3>'+(pending.length?pending.map(f=>friendCard(person(f.requester_id))).join(''):'<p>No pending requests.</p>')+'</section>'+
+ '<section class="panel lb-invite-panel"><h3>Invite friends to LinkBook</h3><p>Share LinkBook with friends who are not yet registered.</p><div class="lb-invite-actions"><button type="button" class="primary" data-invite="share">Invite friends</button><button type="button" class="secondary" data-invite="copy">Copy invitation link</button></div></section>';
 }
 function messagesPage(){
  const contacts=people.filter(p=>p.id!==user.id&&connected(p.id));
  if(!peer&&contacts.length)peer=contacts[0].id;
  if(!contacts.some(p=>p.id===peer))peer=contacts[0]?.id||null;
  const chat=messages.filter(m=>[m.sender_id,m.recipient_id].includes(user.id)&&[m.sender_id,m.recipient_id].includes(peer)&&m.sender_id!==m.recipient_id);
- return '<h1 class="page-title">Messages</h1><section class="panel"><p>Private conversations with your accepted friends.</p><div class="cloud-contact">'+contacts.map(p=>'<button class="'+(peer===p.id?'selected':'')+'" data-peer="'+p.id+'">'+esc(profileName(p))+'</button>').join('')+'</div>'+(peer?'<h3>Chat with '+esc(profileName(person(peer)))+'</h3><div class="lb-call-launch"><button type="button" data-private-call="'+esc(peer)+'" data-mode="audio">📞 Voice call</button><button type="button" data-private-call="'+esc(peer)+'" data-mode="video">📹 Video call</button><p>Private calls beta — both friends must have LinkBook open. Allow microphone/camera when prompted.</p></div><div class="cloud-chat">'+(chat.length?chat.map(m=>'<div class="cloud-bubble '+(m.sender_id===user.id?'mine':'')+'">'+esc(m.body)+'<small>'+time(m.created_at)+'</small></div>').join(''):'<p class="muted">Start the conversation.</p>')+'</div><form id="cloudMessage" class="comment-entry"><input name="body" required maxlength="2000" placeholder="Write a private message..." autocomplete="off"><button class="primary">Send</button></form>':'<p class="empty">Add a friend first to start messaging.</p>')+'</section>';
+ return '<h1 class="page-title">Messages</h1><section class="panel"><p>Private conversations with your accepted friends.</p><div class="cloud-contact">'+contacts.map(p=>'<button class="'+(peer===p.id?'selected':'')+'" data-peer="'+p.id+'">'+esc(profileName(p))+'</button>').join('')+'</div>'+(peer?'<h3>Chat with '+esc(profileName(person(peer)))+'</h3><div class="lb-call-launch"><button type="button" data-private-call="'+esc(peer)+'" data-mode="audio">📞 Voice call</button><button type="button" data-private-call="'+esc(peer)+'" data-mode="video">📹 Video call</button><p>Private calls beta — both friends must have LinkBook open. Allow microphone/camera when prompted.</p></div><div class="cloud-chat">'+(chat.length?chat.map(m=>'<div class="cloud-bubble '+(m.sender_id===user.id?'mine':'')+'">'+esc(m.body)+'<small>'+time(m.created_at)+'</small></div>').join(''):'<p class="muted">Start the conversation.</p>')+'</div><form id="cloudMessage" class="comment-entry"><input name="body" required maxlength="2000" placeholder="Write a private message..." autocomplete="off"><button class="primary">Send</button></form>':'<div class="empty"><p>Add an accepted friend to start messaging.</p><button type="button" class="primary" data-page="friends">Find Friends</button></div>')+'</section>';
 }
 function profilePage(){
  const p=me, mine=posts.filter(x=>x.author_id===user.id);
@@ -328,6 +342,7 @@ async function click(e){
   }
   return;
  }
+ const messagePerson=e.target.closest('[data-message-person]');if(messagePerson){const id=messagePerson.dataset.messagePerson;if(connected(id)){peer=id;switchPage('messages');}return;}
  const pg=e.target.closest('[data-page]');if(pg){switchPage(pg.dataset.page);return}
  const fs=e.target.closest('[data-filter]');if(fs){filter=fs.dataset.filter;render();return}
  if(e.target.closest('#openComposer')){pendingMedia=null;pendingPostId=null;selectedMediaFile=null;composer=true;render();return}
