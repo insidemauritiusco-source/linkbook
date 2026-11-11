@@ -55,6 +55,7 @@ async function boot(){
  window.LinkBookCalls?.init(db,user);
  window.LinkBookStatus?.init({db,user,upload,displayName:id=>profileName(person(id)),notice:notify});
  window.LinkBookHomeStories?.init({db,user,displayName:id=>profileName(person(id)),avatarUrl:id=>person(id)?.avatar_url||null});
+ window.LinkBookDeviceAlerts?.init({db,user,notice:notify});
  $('#search').addEventListener('input',e=>{query=e.target.value.toLowerCase().trim();render()});
  $('#theme').addEventListener('click',()=>{document.body.classList.toggle('dark');localStorage.setItem('linkbook-theme',document.body.classList.contains('dark')?'dark':'light')});
  if(localStorage.getItem('linkbook-theme')==='dark')document.body.classList.add('dark');
@@ -67,7 +68,7 @@ async function boot(){
   .on('postgres_changes',{event:'*',schema:'public',table:'comments'},()=>schedule())
   .on('postgres_changes',{event:'*',schema:'public',table:'friendships'},()=>schedule())
   .on('postgres_changes',{event:'*',schema:'public',table:'messages',filter:'recipient_id=eq.'+user.id},()=>schedule())
-  .on('postgres_changes',{event:'*',schema:'public',table:'notifications',filter:'recipient_id=eq.'+user.id},()=>schedule())
+  .on('postgres_changes',{event:'*',schema:'public',table:'notifications',filter:'recipient_id=eq.'+user.id},event=>{if(event.eventType==='INSERT'&&event.new?.recipient_id===user.id)window.LinkBookDeviceAlerts?.onNotification?.(event.new);schedule()})
   .subscribe();
  window.addEventListener('focus',()=>schedule());
 }
@@ -153,7 +154,7 @@ function settingsPage(){
  return '<h1 class="page-title">Profile settings</h1><section class="panel"><form id="cloudProfile" class="settings-row"><label>Display name</label><input class="form-input" name="display_name" maxlength="70" required value="'+esc(me.display_name)+'"><label>Bio</label><textarea class="form-input" name="bio" maxlength="300">'+esc(me.bio||'')+'</textarea><label>Location</label><input class="form-input" name="location" maxlength="100" value="'+esc(me.location||'Mauritius')+'"><label>Profile picture</label><input class="form-input" type="file" name="avatar" accept="image/jpeg,image/png,image/webp" aria-describedby="avatarHelp"><small id="avatarHelp" class="muted">Choose a JPG, PNG or WebP image up to 25 MB, then click Save profile below.</small><div class="lb-avatar-preview" id="lbAvatarPreview">'+(me.avatar_url?'<img src="'+esc(me.avatar_url)+'" alt="Current profile photo">':'<span class="avatar">'+icon(profileName(me))+'</span>')+'</div><label>Cover photo (banner)</label><input class="form-input" type="file" name="cover" accept="image/jpeg,image/png,image/webp" aria-describedby="coverHelp"><small id="coverHelp" class="muted">Recommended 1500 × 500 pixels, JPEG, PNG or WebP, up to 25 MB. Banner adapts to your screen.</small><div id="lbCoverPreview" class="cloud-cover cloud-cover-preview">'+(me.cover_url?'<img class="cloud-cover-photo" src="'+esc(me.cover_url)+'" alt="Current profile cover">':'')+'</div><button class="primary" type="submit">Save profile</button></form></section><section class="panel"><h3>🇲🇺 Mauritius</h3><p>Times shown in Indian/Mauritius (UTC+4).</p></section><section class="panel"><h3>Privacy &amp; safety</h3><p>Your posts are visible to signed-in LinkBook members. You can block members, report content, export your data and delete your account.</p><button class="primary" type="button" data-page="safety">Open Safety &amp; privacy</button></section>';
 }
 function notificationsPage(){
- return '<h1 class="page-title">Notifications</h1><section class="panel"><button class="secondary" data-action="readall">Mark all as read</button>'+(notifications.length?notifications.map(n=>'<div class="member"><div class="member-info"><b>'+esc(profileName(person(n.actor_id)))+'</b><small>'+esc(({friend_request:'sent you a friend request',friend_accept:'accepted your friend request',like:'liked your post',comment:'commented on your post',message:'sent you a message'})[n.kind]||n.kind)+'</small><small>'+time(n.created_at)+'</small></div>'+(n.is_read?'':'<span class="cloud-dot">●</span>')+'</div>').join(''):'<p>No notifications yet.</p>')+'</section>';
+ return '<h1 class="page-title">Notifications</h1>'+(window.LinkBookDeviceAlerts?.controls?.()||'')+'<section class="panel"><button class="secondary" data-action="readall">Mark all as read</button>'+(notifications.length?notifications.map(n=>'<div class="member"><div class="member-info"><b>'+esc(profileName(person(n.actor_id)))+'</b><small>'+esc(({friend_request:'sent you a friend request',friend_accept:'accepted your friend request',like:'liked your post',comment:'commented on your post',message:'sent you a message'})[n.kind]||n.kind)+'</small><small>'+time(n.created_at)+'</small></div>'+(n.is_read?'':'<span class="cloud-dot">●</span>')+'</div>').join(''):'<p>No notifications yet.</p>')+'</section>';
 }
 function validateMedia(file){
  if(!file)return;
@@ -465,6 +466,7 @@ function change(e){
 }
 const badge=document.createElement('button');badge.className='cloud-notifications';badge.type='button';badge.title='Notifications';badge.setAttribute('aria-label','Notifications');badge.textContent='🔔';badge.addEventListener('click',()=>switchPage('notifications'));$('.header-actions')?.prepend(badge);
 root.innerHTML='<section class="panel empty">Connecting LinkBook Pro…</section>';
-if(new URLSearchParams(location.search).has('live'))page='live';
+if(new URLSearchParams(location.search).has('notifications'))page='notifications';
+else if(new URLSearchParams(location.search).has('live'))page='live';
 boot().catch(e=>{console.error(e);root.innerHTML='<section class="panel"><h2>Cannot connect to LinkBook Pro</h2><p>'+esc(errText(e))+'</p><button class="primary" id="cloudRetry">Retry</button></section>';$('#cloudRetry').onclick=()=>location.reload()});
 })();
