@@ -16,3 +16,8 @@
 #lb-call-notice[hidden]{display:none}
 body.dark .lb-call-launch button{background:#2b4162;color:#dceaff;border-color:#4a668e}
 @media(max-width:720px){.lb-call-card{padding:14px}.lb-call-stage{aspect-ratio:3/4}.lb-call-controls button{flex:1 1 36%}}
+
+/* Explain audio state and make the speaker-unlock control easy to tap. */
+.lb-call-audio-help{margin:12px auto 2px;padding:10px 12px;border-radius:10px;background:#223c5b;color:#f3f7ff;font-size:13px;line-height:1.45;max-width:570px}
+#lb-call-hear{background:#d9efff!important;color:#10456e!important;border:2px solid #69b4ed!important}
+#lb-call-hear:focus-visible{outline:3px solid #fcd34d;outline-offset:2px}
